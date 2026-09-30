@@ -1,0 +1,17 @@
+{
+  "name": "ac-luxury-aesthetics",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "uv run pywrangler dev",
+    "deploy": "uv run pywrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply ac-luxury-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply ac-luxury-db --remote",
+    "test": "uv run pytest",
+    "test:unit": "uv run pytest tests/unit",
+    "test:smoke": "uv run pytest -m smoke"
+  },
+  "devDependencies": {
+    "wrangler": "^4.145.0"
+  }
+}

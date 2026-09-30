@@ -1,0 +1,75 @@
+from datetime import date
+from urllib.parse import unquote
+
+import pytest
+
+from messages import booking_whatsapp_text, format_date_es, format_price, format_time_es, whatsapp_url
+from validation import ValidationError, normalize_phone, validate_booking
+
+VALID = {
+    "service_id": "semipermanente",
+    "date": "2026-10-05",
+    "time": "11:00",
+    "name": "  María   Pérez ",
+    "phone": "+57 300 123 4567",
+    "neighborhood": "San Fernando",
+    "address": "Cra 34 # 5-20",
+}
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("3001234567", "573001234567"),
+    ("300 123 4567", "573001234567"),
+    ("+57 300-123-4567", "573001234567"),
+    ("573001234567", "573001234567"),
+    ("6021234567", None),   # fijo, no celular
+    ("30012345", None),
+    ("", None),
+])
+def test_normalize_phone(raw, expected):
+    assert normalize_phone(raw) == expected
+
+
+def test_valid_booking_is_cleaned():
+    out = validate_booking(VALID)
+    assert out["name"] == "María Pérez"
+    assert out["phone"] == "573001234567"
+    assert out["date"] == date(2026, 10, 5)
+    assert out["service"]["id"] == "semipermanente"
+
+
+def test_invalid_booking_reports_each_field():
+    with pytest.raises(ValidationError) as e:
+        validate_booking({"service_id": "nope", "date": "x", "time": "25:00", "phone": "1"})
+    assert set(e.value.errors) >= {"service_id", "date", "time", "name", "phone", "neighborhood", "address"}
+
+
+def test_non_dict_rejected():
+    with pytest.raises(ValidationError):
+        validate_booking(["x"])
+
+
+def test_spanish_formats():
+    assert format_date_es(date(2026, 9, 30)) == "miércoles 30 sep"
+    assert format_time_es("11:00") == "11:00 a. m."
+    assert format_time_es("13:30") == "1:30 p. m."
+    assert format_time_es("12:00") == "12:00 p. m."
+    assert format_price(None) == "$ X"
+    assert format_price(85000) == "$ 85.000"
+
+
+def test_whatsapp_link_is_encoded():
+    text = booking_whatsapp_text({
+        "code": "AC-ABCDE", "service_name": "Semipermanente", "date": date(2026, 9, 30),
+        "time": "11:00", "name": "Ana", "neighborhood": "Granada", "address": "Calle 1 # 2-3",
+    })
+    url = whatsapp_url(text, number="573001112233")
+    assert url.startswith("https://wa.me/573001112233?text=")
+    assert " " not in url and "\n" not in url
+    assert "AC-ABCDE" in unquote(url)
+
+
+def test_configured_whatsapp_is_a_valid_colombian_mobile():
+    import config
+    assert normalize_phone(config.WHATSAPP) == config.WHATSAPP
+    assert whatsapp_url("hola").startswith(f"https://wa.me/{config.WHATSAPP}?text=")

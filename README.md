@@ -1,0 +1,155 @@
+# AC Luxury Aesthetics
+
+Sitio web y agenda de citas a domicilio (uñas, cejas y pestañas) de Angélica Castrillón, en Cali.
+
+- **Frontend:** HTML + CSS + JS sin frameworks ni build, en `public/`.
+- **Backend:** Python Workers de Cloudflare (`src/`), solo para `/api/*`.
+- **Base de datos:** Cloudflare D1 (SQLite), migraciones en `migrations/`.
+- **Anti-spam:** Cloudflare Turnstile.
+- **Confirmación:** enlace `wa.me` con el resumen de la cita hacia el WhatsApp de Angélica.
+- **Panel:** `/admin` para que Angélica confirme, cancele y bloquee horarios.
+
+**En producción:** https://ac-luxury-aesthetics.heisjuanda.workers.dev · panel en `/admin/`
+
+## Requisitos
+
+- [uv](https://docs.astral.sh/uv/) (`winget install astral-sh.uv`)
+- Node.js 20+
+
+## Desarrollo local
+
+```bash
+npm install                    # instala wrangler
+uv sync                        # instala workers-py y pytest
+cp .dev.vars.example .dev.vars # claves de prueba de Turnstile
+npm run db:migrate:local       # crea las tablas en la D1 local
+npm run dev                    # http://127.0.0.1:8787  (panel: /admin/, clave en .dev.vars)
+```
+
+Ver las citas guardadas en local:
+
+```bash
+npx wrangler d1 execute ac-luxury-db --local --command "SELECT code, service_name, date, start_min, customer_name, status FROM bookings"
+```
+
+## Datos pendientes (valores X)
+
+Todo lo que falta definir está en **`src/config.py`**, arriba del archivo:
+
+| Constante | Qué es |
+|---|---|
+| `PRECIO_X` | Precio de cada servicio (COP). `None` muestra "$ X". Se puede poner un precio distinto por servicio en `SERVICES`. |
+| `DURACION_X` | Duración de los servicios en minutos (hoy 90 para todos). |
+| `HORA_INICIO_X` / `HORA_FIN_X` | Horario laboral. Para horarios distintos por día o almuerzo, editar `BUSINESS_HOURS`. |
+| `COBERTURA_X` | Barrios que atiende. Vacío = cualquier barrio. |
+| `RECARGO_DOMICILIO_X` | Recargo de domicilio en COP. |
+
+El WhatsApp de Angélica está en `WHATSAPP` (`57` + celular, solo dígitos).
+
+Otros ajustes de agenda en el mismo archivo: `TRAVEL_BUFFER_MIN` (traslado entre citas, 45 min), `SLOT_STEP_MIN`,
+`MIN_NOTICE_HOURS`, `BOOKING_WINDOW_DAYS`, `PENDING_TTL_HOURS`.
+
+Textos de "Sobre mí" y certificaciones: `public/index.html`. Fotos: ver `public/img/portafolio/LEEME.md`.
+
+## Cómo funciona la agenda
+
+1. `GET /api/config` entrega servicios, precios, días abiertos y la ventana de reserva.
+2. `GET /api/availability?service=<id>&from=YYYY-MM-DD&days=N` calcula la grilla de horarios por día.
+   Cada cita ocupa `[inicio, fin + traslado)`; un horario se ofrece solo si su intervalo no choca con otra cita o bloqueo
+   y respeta la anticipación mínima.
+3. `POST /api/bookings` valida Turnstile y los datos, y guarda la cita como **pendiente** con un código (`AC-XXXXX`).
+   La inserción es una única sentencia condicional (`INSERT … SELECT … WHERE NOT EXISTS`), por lo que dos personas que
+   reservan el mismo horario a la vez no pueden quedar ambas registradas.
+4. La clienta abre WhatsApp con el resumen y Angélica confirma. Una cita pendiente sin confirmar libera el horario
+   pasadas `PENDING_TTL_HOURS` horas.
+
+## Panel de administración (`/admin/`)
+
+- **Agenda:** citas por día con filtros por periodo y estado. Acciones: confirmar, cancelar (pide doble toque) y
+  marcar como completada. Cada acción ofrece un enlace de WhatsApp **hacia la clienta** con el mensaje ya escrito.
+  Una pendiente vencida se puede confirmar solo si su horario sigue libre.
+- **Bloqueos:** día completo o franja horaria (vacaciones, compromisos). Avisa si ya hay citas en ese horario.
+- **Seguridad:**
+  - Contraseña única (`ADMIN_PASSWORD`) y cookie de sesión firmada con HMAC (`SESSION_SECRET`), `HttpOnly`,
+    `Secure` y `SameSite=Strict`, válida 7 días.
+  - Cambiar cualquiera de los dos secretos cierra todas las sesiones.
+  - Las escrituras exigen `Origin` del mismo sitio.
+  - Después de 5 intentos fallidos en 15 minutos, bloquea esa IP.
+
+Cambiar la contraseña de producción:
+
+```bash
+npx wrangler secret put ADMIN_PASSWORD
+```
+
+API: `POST /api/admin/login|logout`, `GET /api/admin/session`, `GET /api/admin/bookings?from&to&status`,
+`PATCH /api/admin/bookings/<código>` `{status}`, `GET|POST /api/admin/blocks`, `DELETE /api/admin/blocks/<id>`.
+
+## Pruebas
+
+```bash
+npm test             # unitarias + integración + navegador (≈3 min)
+npm run test:unit    # solo lógica pura (< 1 s)
+npm run test:smoke   # contra producción, sin crear datos
+```
+
+- **Unitarias** (`tests/unit`): horarios, traslado, validación, fechas, sesión HMAC, transiciones de estado y
+  bloqueos.
+- **Integración** (`tests/integration`): levantan **dos Workers reales** con `wrangler dev`, cada uno con su propia
+  D1 y sus propios secretos. Uno usa el Turnstile de prueba que aprueba y el otro el que rechaza. Cubren:
+  - happy paths y errores 400/401/403/404/409/422/429;
+  - 8 reservas simultáneas del mismo horario;
+  - vencimiento de pendientes, simulado adelantando `created_at`;
+  - CSRF, cookies falsificadas o vencidas y bloqueo por fuerza bruta.
+- **Navegador** (`tests/e2e`): Microsoft Edge vía Playwright, en móvil y escritorio, con la CSP real del sitio.
+  Emulan a la clienta (reserva, errores del formulario, horario tomado mientras llena los datos) y a Angélica (login,
+  confirmar, cancelar, filtrar, bloquear un día y verificar que la clienta lo ve cerrado).
+- **Humo** (`tests/smoke`): verifican el sitio publicado. Revisan cabeceras, Turnstile real (rechaza tokens falsos),
+  login del panel con cookie `Secure` y la carga en navegador. No crean citas.
+
+## Estructura
+
+```
+src/
+  entry.py         Worker: router de /api/*
+  public_api.py    configuración, disponibilidad y reservas (+ Turnstile)
+  admin_api.py     panel: sesión, citas y bloqueos
+  config.py        constantes del negocio (valores X)
+  availability.py  cálculo de horarios (puro)
+  validation.py    validación de datos (puro)
+  messages.py      fechas en español y enlace de WhatsApp (puro)
+  auth.py          sesión firmada, cookies, CSRF (puro)
+  admin_logic.py   transiciones de estado, bloqueos, mensajes a clientas (puro)
+  db.py            toda la SQL de D1
+  responses.py     respuestas JSON
+migrations/        esquema D1
+public/            sitio estático (index.html, admin/, css/, js/, img/)
+tests/             unit/, integration/, e2e/, smoke/
+assets/            logo original (no se publica)
+```
+
+## Cloudflare (producción)
+
+| Recurso | Valor |
+|---|---|
+| Worker | `ac-luxury-aesthetics` → https://ac-luxury-aesthetics.heisjuanda.workers.dev |
+| D1 | `ac-luxury-db` (`04d25f7f-7dea-46af-b0ec-4512392b8042`) |
+| Turnstile | widget "AC Luxury Aesthetics" (modo *managed*, dominio del workers.dev) |
+| Secretos | `TURNSTILE_SECRET`, `ADMIN_PASSWORD`, `SESSION_SECRET` (copia local en `.secrets.production.local`, fuera de git) |
+
+Publicar cambios:
+
+```bash
+npm run db:migrate:remote   # solo si hay migraciones nuevas
+npm run deploy
+npm run test:smoke
+```
+
+Al pasar a dominio propio, agrega el dominio al widget de Turnstile. Se puede hacer en el dashboard o por la API
+de `challenges/widgets`.
+
+## Próximas fases
+
+- Portafolio con fotos reales; subida de foto de referencia (R2).
+- Recordatorios automáticos por WhatsApp Cloud API (cron diario).
+- Dominio propio.

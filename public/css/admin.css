@@ -1,0 +1,98 @@
+/* Panel de administración — se apoya en los tokens de styles.css. */
+
+.admin { background: var(--cream); }
+[hidden] { display: none !important; }
+
+/* ---------------------------------------------------------------- login */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 32px 16px; background: var(--sand); }
+.login-card {
+  width: 100%; max-width: 400px; display: grid; gap: 20px; justify-items: center;
+  padding: 40px 32px; background: var(--cream); border: 1px solid var(--line); border-radius: var(--radius-lg);
+}
+.login-card img { border-radius: 50%; }
+.login-card .h2 { font-size: 38px; text-align: center; }
+.login-card .field { width: 100%; }
+.login-back { font-size: 14px; color: var(--ink-soft); }
+
+/* ------------------------------------------------------------------ app */
+.admin-main { padding-top: 28px; padding-bottom: 80px; }
+
+.tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid var(--line); }
+.tab {
+  padding: 12px 18px; margin-bottom: -1px; background: none; border: 0; border-bottom: 2px solid transparent;
+  font-size: 14px; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; color: var(--ink-soft);
+}
+.tab.is-active { color: var(--ink); border-bottom-color: var(--ink); }
+
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat { padding: 16px 18px; background: var(--sand); border-radius: var(--radius); }
+.stat-value { display: block; font-family: var(--font-display); font-size: 36px; line-height: 1; }
+.stat-label { font-size: 13px; color: var(--ink-soft); }
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
+.toolbar .chips { gap: 8px; }
+.toolbar .chip { min-height: 38px; padding: 0 16px; font-size: 12px; }
+.select select {
+  min-height: 42px; padding: 0 38px 0 16px; border: 1px solid var(--line-strong); border-radius: 999px;
+  background: var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231f1a17' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 16px;
+  appearance: none; font-size: 15px; cursor: pointer;
+}
+
+.toast { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; margin-bottom: 18px; background: var(--ink); color: var(--cream); border-radius: var(--radius); font-size: 15px; }
+.toast a { color: var(--cream); font-weight: 500; }
+.toast.is-error { background: #a4402c; }
+
+/* --------------------------------------------------------------- agenda */
+.agenda { display: grid; gap: 28px; }
+.agenda-empty { padding: 40px 20px; text-align: center; color: var(--ink-soft); border: 1px dashed var(--line-strong); border-radius: var(--radius-lg); }
+.day-title { font-family: var(--font-display); font-weight: 400; font-size: 30px; margin-bottom: 12px; }
+.day-list { display: grid; gap: 12px; }
+
+.booking-card {
+  display: grid; grid-template-columns: 118px minmax(0, 1fr) auto; gap: 18px; align-items: start;
+  padding: 18px 20px; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.booking-card.is-cancelled, .booking-card.is-expired { opacity: .6; }
+.booking-time { font-family: var(--font-display); font-size: 26px; line-height: 1.1; white-space: nowrap; }
+.booking-time small { display: block; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); }
+.booking-service { font-weight: 500; }
+.booking-meta { font-size: 15px; color: var(--ink-soft); }
+.booking-meta a { color: var(--ink); }
+.booking-notes { margin-top: 6px; font-size: 14px; font-style: italic; color: var(--ink-soft); }
+.booking-code { font-size: 12px; letter-spacing: .12em; color: var(--ink-soft); }
+.booking-actions { display: flex; flex-direction: column; gap: 8px; min-width: 150px; }
+.booking-actions .btn { min-height: 40px; padding: 0 16px; font-size: 12px; letter-spacing: .12em; }
+.btn-danger { background: transparent; border-color: #a4402c; color: #a4402c; }
+.btn-danger:hover, .btn-danger.is-armed { background: #a4402c; color: var(--white); }
+
+.badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; margin-left: 8px; border-radius: 999px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; vertical-align: middle; }
+.badge-pending { background: #f1dfc6; color: #6b4a1c; }
+.badge-confirmed { background: #d7e6d3; color: #2f5429; }
+.badge-completed { background: var(--nude-2); color: var(--ink); }
+.badge-cancelled { background: #eed3cd; color: #7d2e1f; }
+.badge-expired { background: var(--line); color: var(--ink-soft); }
+
+@media (max-width: 760px) {
+  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .stat { padding: 12px; }
+  .stat-value { font-size: 28px; }
+  .booking-card { grid-template-columns: 1fr; gap: 10px; }
+  .booking-actions { flex-direction: row; flex-wrap: wrap; min-width: 0; }
+  .booking-actions .btn { flex: 1 1 40%; }
+  .toolbar .chips { order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  .toolbar .chip { flex: none; }
+}
+
+/* ------------------------------------------------------------- bloqueos */
+.card { padding: 26px 24px; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.card-title { font-family: var(--font-display); font-weight: 400; font-size: 30px; margin-bottom: 6px; }
+.block-form .muted { margin-bottom: 18px; font-size: 15px; }
+.block-form .btn { margin-top: 20px; }
+.field.check { flex-direction: row; align-items: center; gap: 10px; padding-top: 30px; }
+.field.check input { width: 20px; height: 20px; accent-color: var(--ink); }
+.blocks-title { margin-top: 36px; margin-bottom: 14px; }
+.blocks { display: grid; gap: 10px; }
+.block-item { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 18px; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); }
+.block-item strong { font-weight: 500; }
+.block-item .muted { font-size: 14px; }
+@media (max-width: 700px) { .field.check { padding-top: 0; } }

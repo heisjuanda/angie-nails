@@ -1,0 +1,40 @@
+/**
+ * AC Luxury Aesthetics — un solo Worker:
+ *  - public/  → sitio estático (HTML/CSS/JS), servido directo por Cloudflare
+ *  - /api/*   → backend en Python (src/entry.py)
+ * Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "ac-luxury-aesthetics",
+	"main": "src/entry.py",
+	"compatibility_date": "2026-09-26",
+	"compatibility_flags": [
+		"python_workers"
+	],
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS",
+		// Solo la API pasa por Python; todo lo demás es estático (gratis y sin cold start).
+		"run_worker_first": [
+			"/api/*"
+		],
+		"not_found_handling": "404-page"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "ac-luxury-db",
+			"database_id": "04d25f7f-7dea-46af-b0ec-4512392b8042",
+			"migrations_dir": "migrations"
+		}
+	],
+	"vars": {
+		// Clave pública de Turnstile (widget "AC Luxury Aesthetics", dominio *.workers.dev).
+		// En local se sobrescribe con la clave de prueba desde .dev.vars.
+		"TURNSTILE_SITE_KEY": "0x4AAAAAAFKglLNd2uJ-XZoY"
+	},
+	"observability": {
+		"enabled": true
+	}
+}

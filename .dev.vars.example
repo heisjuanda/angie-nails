@@ -1,0 +1,13 @@
+# Copia este archivo como .dev.vars para desarrollo local (no se sube a git).
+# En producción: npx wrangler secret put TURNSTILE_SECRET
+
+# Clave secreta de PRUEBA de Turnstile (siempre pasa). Para probar el rechazo usa:
+# 2x0000000000000000000000000000000AA
+# Clave pública de PRUEBA (sobrescribe la real de wrangler.jsonc en local).
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+
+# Panel /admin. En producción: npx wrangler secret put ADMIN_PASSWORD (y SESSION_SECRET)
+ADMIN_PASSWORD=cambia-esta-clave
+# Cadena aleatoria larga para firmar la sesión: python -c "import secrets; print(secrets.token_urlsafe(48))"
+SESSION_SECRET=cambia-este-secreto

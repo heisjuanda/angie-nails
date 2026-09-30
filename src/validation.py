@@ -1,0 +1,79 @@
+"""Validación de los datos de una reserva. Lógica pura, sin Cloudflare."""
+
+import re
+from datetime import date
+
+import config
+
+MAX_LEN = {"name": 80, "neighborhood": 80, "address": 160, "notes": 500}
+
+_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+class ValidationError(Exception):
+    def __init__(self, errors: dict[str, str]):
+        super().__init__("datos inválidos")
+        self.errors = errors
+
+
+def normalize_phone(raw: str) -> str | None:
+    """Acepta celulares colombianos: 3001234567, +57 300 123 4567, 57-300..."""
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) == 12 and digits.startswith("57"):
+        digits = digits[2:]
+    if len(digits) == 10 and digits.startswith("3"):
+        return "57" + digits
+    return None
+
+
+def _clean(value, field: str) -> str:
+    text = " ".join(str(value or "").split())
+    return text[: MAX_LEN[field]]
+
+
+def validate_booking(data: dict) -> dict:
+    """Devuelve los datos limpios o lanza ValidationError con un mensaje por campo."""
+    if not isinstance(data, dict):
+        raise ValidationError({"_": "Solicitud inválida."})
+
+    errors: dict[str, str] = {}
+    out: dict = {}
+
+    service = config.SERVICES_BY_ID.get(str(data.get("service_id", "")))
+    if not service:
+        errors["service_id"] = "Elige un servicio."
+    out["service"] = service
+
+    try:
+        out["date"] = date.fromisoformat(str(data.get("date", "")))
+    except ValueError:
+        errors["date"] = "Elige una fecha."
+
+    time = str(data.get("time", ""))
+    if not _TIME_RE.match(time):
+        errors["time"] = "Elige una hora."
+    out["time"] = time
+
+    out["name"] = _clean(data.get("name"), "name")
+    if len(out["name"]) < 2:
+        errors["name"] = "Escribe tu nombre."
+
+    out["phone"] = normalize_phone(str(data.get("phone", "")))
+    if not out["phone"]:
+        errors["phone"] = "Escribe un celular válido, p. ej. 300 000 0000."
+
+    out["neighborhood"] = _clean(data.get("neighborhood"), "neighborhood")
+    if len(out["neighborhood"]) < 2:
+        errors["neighborhood"] = "Escribe tu barrio."
+    elif config.COBERTURA_X and out["neighborhood"].lower() not in {b.lower() for b in config.COBERTURA_X}:
+        errors["neighborhood"] = "Por ahora no tenemos cobertura en ese barrio."
+
+    out["address"] = _clean(data.get("address"), "address")
+    if len(out["address"]) < 5:
+        errors["address"] = "Escribe tu dirección."
+
+    out["notes"] = _clean(data.get("notes"), "notes")
+
+    if errors:
+        raise ValidationError(errors)
+    return out

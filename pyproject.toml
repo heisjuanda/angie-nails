@@ -1,0 +1,26 @@
+[project]
+name = "ac-luxury-aesthetics"
+version = "0.1.0"
+description = "Sitio y agenda de citas a domicilio de AC Luxury Aesthetics (uñas, cejas y pestañas) en Cali"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "workers-py",
+    "workers-runtime-sdk",
+    "pytest",
+    "httpx>=0.28.1",
+    "playwright>=1.63.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+addopts = "-m 'not smoke'"
+markers = [
+    "smoke: pruebas de humo contra el sitio publicado (se corren aparte: -m smoke)",
+    "integration: levanta el Worker real con wrangler dev (D1 local aislada)",
+    "e2e: prueba en navegador (Microsoft Edge vía Playwright)",
+]

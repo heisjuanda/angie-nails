@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel · Luxury Aesthetics</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#eadfd9">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/img/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <script src="/js/admin.js" defer></script>
+</head>
+<body class="admin">
+  <!-- ================================================================ LOGIN -->
+  <main class="login" data-view="login" hidden>
+    <form class="login-card" data-login-form novalidate>
+      <img src="/img/logo-ac-400.webp" alt="" width="96" height="96">
+      <h1 class="h2">Panel de <em>Angélica</em></h1>
+      <label class="field">
+        <span class="field-label">Contraseña</span>
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <p class="form-message" role="alert" data-login-error hidden></p>
+      <button class="btn btn-dark btn-block" type="submit">Entrar</button>
+      <a class="login-back" href="/">← Volver al sitio</a>
+    </form>
+  </main>
+
+  <!-- ================================================================== APP -->
+  <div data-view="app" hidden>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="/" target="_blank" rel="noopener" aria-label="Ver el sitio">
+          <img class="brand-logo" src="/img/logo-ac-400.webp" alt="" width="44" height="44">
+          <span class="brand-text">
+            <span class="brand-name">Panel</span>
+            <span class="brand-tag">Luxury Aesthetics</span>
+          </span>
+        </a>
+        <button class="btn btn-outline btn-sm" type="button" data-logout>Salir</button>
+      </div>
+    </header>
+
+    <main class="container admin-main">
+      <nav class="tabs" role="tablist" aria-label="Secciones">
+        <button class="tab is-active" type="button" role="tab" aria-selected="true" aria-controls="panel-agenda" id="tab-agenda" data-tab="agenda">Agenda</button>
+        <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-bloqueos" id="tab-bloqueos" data-tab="bloqueos">Bloqueos</button>
+      </nav>
+
+      <!-- ---------------------------------------------------------- Agenda -->
+      <section id="panel-agenda" role="tabpanel" aria-labelledby="tab-agenda" data-panel="agenda">
+        <div class="stats" data-stats></div>
+
+        <div class="toolbar">
+          <label class="select">
+            <span class="sr-only">Periodo</span>
+            <select data-range>
+              <option value="upcoming">Próximos 30 días</option>
+              <option value="today">Hoy</option>
+              <option value="week">Próximos 7 días</option>
+              <option value="past">Últimos 30 días</option>
+            </select>
+          </label>
+          <div class="chips" role="group" aria-label="Estado" data-status-filters>
+            <button class="chip is-active" type="button" data-status="" aria-pressed="true">Todas</button>
+            <button class="chip" type="button" data-status="pending" aria-pressed="false">Pendientes</button>
+            <button class="chip" type="button" data-status="confirmed" aria-pressed="false">Confirmadas</button>
+            <button class="chip" type="button" data-status="completed" aria-pressed="false">Completadas</button>
+            <button class="chip" type="button" data-status="cancelled" aria-pressed="false">Canceladas</button>
+          </div>
+          <button class="btn btn-outline btn-sm" type="button" data-refresh>Actualizar</button>
+        </div>
+
+        <div class="toast" role="status" data-toast hidden></div>
+        <div class="agenda" data-agenda aria-live="polite"></div>
+      </section>
+
+      <!-- -------------------------------------------------------- Bloqueos -->
+      <section id="panel-bloqueos" role="tabpanel" aria-labelledby="tab-bloqueos" data-panel="bloqueos" hidden>
+        <form class="block-form card" data-block-form novalidate>
+          <h2 class="card-title">Bloquear horario</h2>
+          <p class="muted">Vacaciones, compromisos o días sin servicio. Las clientas no verán esos horarios.</p>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field-label">Fecha</span>
+              <input name="date" type="date" required>
+            </label>
+            <label class="field check">
+              <input name="all_day" type="checkbox" checked>
+              <span>Todo el día</span>
+            </label>
+            <label class="field" data-time-field>
+              <span class="field-label">Desde</span>
+              <input name="start" type="time" step="1800" value="08:00">
+            </label>
+            <label class="field" data-time-field>
+              <span class="field-label">Hasta</span>
+              <input name="end" type="time" step="1800" value="12:00">
+            </label>
+            <label class="field field-wide">
+              <span class="field-label">Motivo <span class="optional">(opcional, solo lo ves tú)</span></span>
+              <input name="reason" maxlength="120" placeholder="Ej.: viaje, cita médica">
+            </label>
+          </div>
+          <p class="form-message" role="alert" data-block-message hidden></p>
+          <button class="btn btn-dark" type="submit">Bloquear</button>
+        </form>
+
+        <h2 class="card-title blocks-title">Próximos bloqueos</h2>
+        <ul class="blocks" data-blocks></ul>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

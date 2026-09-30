@@ -1,0 +1,20 @@
+node_modules/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+.env*
+.secrets.production.local
+!.env.example
+
+# python
+.venv/
+.venv-workers/
+python_modules/
+src/vendor/
+__pycache__/
+.pytest_cache/
+
+# editor / sistema
+.vscode-test/
+Thumbs.db
+.DS_Store
