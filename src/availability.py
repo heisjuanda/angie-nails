@@ -35,8 +35,7 @@ def day_slots(
     buffer: int = config.TRAVEL_BUFFER_MIN,
     min_notice_hours: int = config.MIN_NOTICE_HOURS,
 ) -> list[dict]:
-    """Devuelve la grilla de horarios del día con su disponibilidad.
-
+    """
     busy: intervalos ya ocupados (inicio, fin + desplazamiento), incluyendo
           citas activas y bloqueos manuales.
     """
@@ -46,8 +45,7 @@ def day_slots(
     for open_hhmm, close_hhmm in hours.get(day.weekday(), []):
         open_min, close_min = to_minutes(open_hhmm), to_minutes(close_hhmm)
         start = open_min
-        # La cita debe terminar dentro del horario; el traslado puede quedar fuera.
-        while start + duration <= close_min:
+        while start < close_min:
             slot_dt = datetime.combine(day, datetime.min.time(), config.TZ) + timedelta(minutes=start)
             taken = any(overlaps(start, start + duration + buffer, b0, b1) for b0, b1 in busy)
             slots.append({

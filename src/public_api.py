@@ -7,7 +7,7 @@ import availability
 import config
 import db
 import messages
-from responses import error, json_response, read_json
+from responses import client_ip, error, json_response, read_json
 from validation import ValidationError, validate_booking
 
 TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
@@ -62,10 +62,62 @@ async def get_availability(env, qs: dict):
     return json_response({"service": service["id"], "days": result})
 
 
+def created_payload(record: dict, service: dict, b: dict, status: str = "pending") -> dict:
+   return {
+        "code": record["code"],
+        "status": status,
+        "summary": {
+            "service": service["name"],
+            "date": messages.format_date_es(b["date"]),
+            "time": messages.format_time_es(b["time"]),
+            "price": messages.format_price(service["price"]),
+        },
+        "whatsapp_url": messages.whatsapp_url(messages.booking_whatsapp_text(record)),
+    }
+
+
+def replay_response(row):
+    if row["status"] in ("cancelled", "completed"):
+        return error(409, "Esa cita ya no está activa. Escríbenos por WhatsApp y la volvemos a agendar.")
+    record = {
+        "code": row["code"],
+        "service_name": row["service_name"],
+        "date": date.fromisoformat(row["date"]),
+        "time": availability.to_hhmm(row["start_min"]),
+        "name": row["customer_name"],
+        "neighborhood": row["neighborhood"],
+        "address": row["address"],
+        "notes": row["notes"],
+    }
+    service = {"name": row["service_name"], "price": row["price"]}
+    return json_response(
+        created_payload(record, service, {"date": record["date"], "time": record["time"]}, row["status"]),
+        status=201,
+    )
+
+
+async def limits_response(env, request, b: dict):
+    phone = b["phone"]
+    if await db.active_bookings_for_phone(env.DB, phone, b["date"]) >= config.MAX_ACTIVE_PER_PHONE_DAY:
+        message = messages.LIMIT_ONE_PER_DAY
+    elif await db.phone_attempts_in_day(env.DB, phone) >= config.MAX_PER_PHONE_DAY:
+        message = messages.LIMIT_PHONE_DAY
+    elif await db.ip_attempts_in_hour(env.DB, client_ip(request)) >= config.MAX_PER_IP_HOUR:
+        message = messages.LIMIT_IP_HOUR
+    else:
+        return None
+    return error(429, message, whatsapp_url=messages.limit_whatsapp_url(message))
+
+
 async def create_booking(env, request):
     data = await read_json(request)
     if data is None:
         return error(400, "Solicitud inválida.")
+    raw_token = data.get("form_token")
+    if isinstance(raw_token, str) and raw_token.strip():
+        previous = await db.get_booking_by_form_token(env.DB, raw_token.strip())
+        if previous:
+            return replay_response(previous)
 
     if not await verify_turnstile(env, data.get("turnstile_token"), request):
         return error(403, "No pudimos verificar que eres una persona. Recarga la página e intenta de nuevo.")
@@ -74,6 +126,10 @@ async def create_booking(env, request):
         b = validate_booking(data)
     except ValidationError as e:
         return error(422, "Revisa los datos del formulario.", fields=e.errors)
+
+    blocked = await limits_response(env, request, b)
+    if blocked:
+        return blocked
 
     service = b["service"]
     start = availability.to_minutes(b["time"])
@@ -101,26 +157,19 @@ async def create_booking(env, request):
             inserted = await db.insert_booking_if_free(env.DB, record)
             break
         except Exception as e:
-            if "UNIQUE" not in str(e):
+            conflict = db.classify_unique_error(e)
+            if conflict == "form_token":
+                winner = await db.get_booking_by_form_token(env.DB, record["form_token"])
+                if winner:
+                    return replay_response(winner)
+                raise
+            if conflict != "code":
                 raise
     if not inserted:
         return error(409, "Ese horario acaba de ser reservado. Elige otro, por favor.")
 
-    text = messages.booking_whatsapp_text(record)
-    return json_response(
-        {
-            "code": record["code"],
-            "status": "pending",
-            "summary": {
-                "service": service["name"],
-                "date": messages.format_date_es(b["date"]),
-                "time": messages.format_time_es(b["time"]),
-                "price": messages.format_price(service["price"]),
-            },
-            "whatsapp_url": messages.whatsapp_url(text),
-        },
-        status=201,
-    )
+    await db.record_booking_attempt(env.DB, client_ip(request), b["phone"])
+    return json_response(created_payload(record, service, b), status=201)
 
 
 async def verify_turnstile(env, token, request) -> bool:

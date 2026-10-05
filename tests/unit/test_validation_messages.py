@@ -4,6 +4,7 @@ from urllib.parse import unquote
 import pytest
 
 from messages import booking_whatsapp_text, format_date_es, format_price, format_time_es, whatsapp_url
+from helpers import booking_payload
 from validation import ValidationError, normalize_phone, validate_booking
 
 VALID = {
@@ -14,6 +15,7 @@ VALID = {
     "phone": "+57 300 123 4567",
     "neighborhood": "San Fernando",
     "address": "Cra 34 # 5-20",
+    "form_token": "a1b2c3d4e5f6a7b8c9d0",
 }
 
 
@@ -35,6 +37,20 @@ def test_valid_booking_is_cleaned():
     assert out["name"] == "María Pérez"
     assert out["phone"] == "573001234567"
     assert out["date"] == date(2026, 10, 5)
+    assert out["service"]["id"] == "semipermanente"
+    assert out["form_token"] == "a1b2c3d4e5f6a7b8c9d0"
+
+
+@pytest.mark.parametrize("bad", ["", "corta", "x" * 65, "con espacio/simbolo$$", None])
+def test_form_token_is_required_and_bounded(bad):
+    with pytest.raises(ValidationError) as e:
+        validate_booking({**VALID, "form_token": bad})
+    assert "form_token" in e.value.errors
+
+
+def test_helper_payload_is_valid_by_default():
+    out = validate_booking(booking_payload(date(2026, 10, 5), "11:00"))
+    assert out["phone"].startswith("573") and len(out["phone"]) == 12
     assert out["service"]["id"] == "semipermanente"
 
 

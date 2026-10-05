@@ -6,6 +6,7 @@ import config
 MAX_LEN = {"name": 80, "neighborhood": 80, "address": 160, "notes": 500}
 
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+_FORM_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 
 
 class ValidationError(Exception):
@@ -71,6 +72,10 @@ def validate_booking(data: dict) -> dict:
         errors["address"] = "Escribe tu dirección."
 
     out["notes"] = _clean(data.get("notes"), "notes")
+
+    out["form_token"] = str(data.get("form_token") or "")
+    if not _FORM_TOKEN_RE.match(out["form_token"]):
+        errors["form_token"] = "Recarga la página e intenta de nuevo."
 
     if errors:
         raise ValidationError(errors)

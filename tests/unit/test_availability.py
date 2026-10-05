@@ -26,8 +26,10 @@ def test_minutes_roundtrip():
     assert to_hhmm(810) == "13:30"
 
 
-def test_grid_ends_when_service_no_longer_fits():
-    assert [s["time"] for s in slots()] == ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00"]
+def test_grid_covers_the_whole_workday():
+    assert [s["time"] for s in slots()] == [
+        "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+    ]
 
 
 def test_sunday_closed():
@@ -36,7 +38,7 @@ def test_sunday_closed():
 
 def test_existing_booking_blocks_overlap_and_travel_time():
     result = available(slots(busy=[(540, 630)]))
-    assert result == ["10:30", "11:00"]
+    assert result == ["10:30", "11:00", "11:30"]
 
 
 def test_back_to_back_respects_buffer_exactly():
@@ -56,3 +58,20 @@ def test_is_slot_bookable_checks_window_and_grid():
     assert not is_slot_bookable(date(2026, 10, 1), to_minutes("08:00"), 60, [], NOW, hours=HOURS)  # pasado
     far = date(2026, 12, 31)
     assert not is_slot_bookable(far, to_minutes("08:00"), 60, [], NOW, hours=HOURS)  # fuera de la ventana
+
+
+def test_long_service_offers_slots_until_closing():
+    hours = {MONDAY.weekday(): [("08:00", "18:00")]}
+    result = slots(duration=210, hours=hours)
+    assert [s["time"] for s in result][-1] == "17:30"
+    assert all(s["available"] for s in result)
+
+
+def test_booking_at_14_blocks_the_rest_of_the_afternoon():
+    hours = {MONDAY.weekday(): [("08:00", "18:00")]}
+    busy = [(to_minutes("14:00"), to_minutes("14:00") + 210 + 45)]
+    result = available(slots(duration=210, busy=busy, hours=hours, buffer=45))
+    assert result[-1] == "09:30"
+    assert "10:00" not in result
+    for t in ("14:00", "15:00", "16:00", "17:00", "17:30"):
+        assert t not in result

@@ -8,6 +8,7 @@ Cada una tiene su propio directorio de persistencia y sus propios secretos.
 """
 
 import contextlib
+import hashlib
 import json
 import os
 import secrets
@@ -209,9 +210,22 @@ def free_day(_day_pool):
         pytest.fail("Se acabaron los días libres de la ventana de reserva para las pruebas.")
 
 
+def _ip_para(nombre_test: str) -> str:
+    """Una IP distinta por test, estable entre corridas.
+
+    Cada test necesita su propio cubo en `booking_attempts`: si comparten 127.0.0.1 crean
+    decenas de citas en menos de un minuto y el tope por IP los tumbaría a todos. Limpiar
+    la tabla antes de cada test no sirve, porque `Instance.sql()` lanza un subproceso
+    `wrangler` y cuesta unos 3 s. Esto no cuesta nada y además es más honesto: cada test
+    simula una conexión distinta.
+    """
+    h = hashlib.sha256(nombre_test.encode()).hexdigest()
+    return f"10.{int(h[:2], 16)}.{int(h[2:4], 16)}.{int(h[4:6], 16)}"
+
+
 @pytest.fixture
-def api(server):
-    with server.client() as c:
+def api(server, request):
+    with server.client(headers={"cf-connecting-ip": _ip_para(request.node.name)}) as c:
         yield c
 
 

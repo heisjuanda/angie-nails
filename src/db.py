@@ -6,11 +6,12 @@ import config
 
 
 def _active(alias: str = "") -> str:
-    """Una cita bloquea la agenda si está confirmada, o pendiente y aún no vence."""
     p = f"{alias}." if alias else ""
+    inicio = f"{p}date || ' ' || printf('%02d:%02d', {p}start_min / 60, {p}start_min % 60)"
     return (
-        f"({p}status = 'confirmed' OR ({p}status = 'pending' "
-        f"AND {p}created_at > datetime('now', '-{int(config.PENDING_TTL_HOURS)} hours')))"
+        f"({p}status = 'confirmed' OR ({p}status = 'pending' AND ("
+        f"{p}created_at > datetime('now', '-{int(config.PENDING_TTL_HOURS)} hours')"
+        f" OR {inicio} > datetime('now', '-5 hours'))))"
     )
 
 
@@ -39,28 +40,39 @@ async def busy_intervals(db, first: date, last: date) -> dict[str, list[tuple[in
     return busy
 
 
+def classify_unique_error(exc: Exception) -> str | None:
+    msg = str(exc)
+    if "UNIQUE" not in msg and "PRIMARY KEY" not in msg:
+        return None
+    if "bookings.form_token" in msg:
+        return "form_token"
+    if "bookings.code" in msg:
+        return "code"
+    return "other"
+
+
 async def insert_booking_if_free(db, b: dict) -> bool:
     res = await db.prepare(
         f"""
         INSERT INTO bookings (
             code, service_id, service_name, category, price, duration_min,
             date, start_min, end_min, busy_until_min,
-            customer_name, phone, neighborhood, address, notes
+            customer_name, phone, neighborhood, address, notes, form_token
         )
-        SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15
+        SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16
         WHERE NOT EXISTS (
             SELECT 1 FROM bookings
              WHERE date = ?7 AND start_min < ?10 AND busy_until_min > ?8 AND {_active()}
         )
         AND NOT EXISTS (
             SELECT 1 FROM blocked_slots
-             WHERE date = ?7 AND start_min < ?10 AND end_min > ?8
+            WHERE date = ?7 AND start_min < ?10 AND end_min > ?8
         )
         """
     ).bind(
         b["code"], b["service_id"], b["service_name"], b["category"], b["price"], b["duration"],
         b["date"].isoformat(), b["start_min"], b["end_min"], b["busy_until_min"],
-        b["name"], b["phone"], b["neighborhood"], b["address"], b["notes"],
+        b["name"], b["phone"], b["neighborhood"], b["address"], b["notes"], b["form_token"],
     ).run()
     return int(res.meta.changes) == 1
 
@@ -87,6 +99,12 @@ async def list_bookings(db, first: date, last: date, status: str | None = None) 
 
 async def get_booking(db, code: str):
     return await db.prepare(f"SELECT {_BOOKING_COLUMNS} FROM bookings WHERE code = ?1").bind(code).first()
+
+
+async def get_booking_by_form_token(db, token: str):
+    return await db.prepare(
+        f"SELECT {_BOOKING_COLUMNS} FROM bookings WHERE form_token = ?1"
+    ).bind(token).first()
 
 
 async def set_booking_status(db, code: str, current: str, new: str) -> bool:
@@ -170,3 +188,36 @@ async def record_failed_mfa(db, ip: str) -> None:
 
 async def clear_failed_mfa(db, ip: str) -> None:
     await db.prepare("DELETE FROM mfa_attempts WHERE ip = ?1").bind(ip).run()
+
+
+#  topes de reservas
+
+async def active_bookings_for_phone(db, phone: str, day: date) -> int:
+    """Citas activas de ese teléfono para esa fecha. Las vencidas no cuentan."""
+    row = await db.prepare(
+        f"SELECT COUNT(*) AS n FROM bookings WHERE phone = ?1 AND date = ?2 AND {_active()}"
+    ).bind(phone, day.isoformat()).first()
+    return int(row["n"]) if row else 0
+
+
+async def phone_attempts_in_day(db, phone: str) -> int:
+    row = await db.prepare(
+        "SELECT COUNT(*) AS n FROM booking_attempts "
+        "WHERE phone = ?1 AND created_at > datetime('now', '-1 day')"
+    ).bind(phone).first()
+    return int(row["n"]) if row else 0
+
+
+async def ip_attempts_in_hour(db, ip: str) -> int:
+    row = await db.prepare(
+        "SELECT COUNT(*) AS n FROM booking_attempts "
+        "WHERE ip = ?1 AND created_at > datetime('now', '-1 hour')"
+    ).bind(ip).first()
+    return int(row["n"]) if row else 0
+
+
+async def record_booking_attempt(db, ip: str, phone: str) -> None:
+    await db.prepare("INSERT INTO booking_attempts (ip, phone) VALUES (?1, ?2)").bind(ip, phone).run()
+    await db.prepare(
+        "DELETE FROM booking_attempts WHERE created_at < datetime('now', '-2 days')"
+    ).run()

@@ -5,7 +5,7 @@ Sitio web y agenda de citas a domicilio (uñas, cejas y pestañas) de Angélica 
 - **Frontend:** HTML + CSS + JS sin frameworks ni build, en `public/`.
 - **Backend:** Python Workers de Cloudflare (`src/`), solo para `/api/*`.
 - **Base de datos:** Cloudflare D1 (SQLite), migraciones en `migrations/`.
-- **Anti-spam:** Cloudflare Turnstile. Si el navegador lo bloquea, la web lo dice y ofrece salida.
+- **Anti-spam:** Cloudflare Turnstile + topes por teléfono e IP. Si el navegador bloquea la verificación, la web lo dice y ofrece salida.
 - **Confirmación:** enlace `wa.me` con el resumen de la cita hacia el WhatsApp de Angélica.
 - **Panel:** `/admin` para que Angélica confirme, cancele y bloquee horarios.
 
@@ -22,6 +22,7 @@ Sitio web y agenda de citas a domicilio (uñas, cejas y pestañas) de Angélica 
 npm install                    # instala wrangler
 uv sync                        # instala workers-py y pytest
 cp .dev.vars.example .dev.vars # claves de prueba de Turnstile
+$ rm -rf .wrangler/state       # elimina la D1 local y sus datos
 npm run db:migrate:local       # crea las tablas en la D1 local
 npm run dev                    # http://127.0.0.1:8787  (panel: /admin/, clave en .dev.vars)
 ```
@@ -32,6 +33,26 @@ Ver las citas guardadas en local:
 npx wrangler d1 execute ac-luxury-db --local --command "SELECT code, service_name, date, start_min, customer_name, status FROM bookings"
 ```
 
+### Limpiar los datos locales
+
+Para empezar de cero al probar a mano. **Con `wrangler dev` apagado** (Ctrl+C), porque la D1 local está en uso:
+
+```bash
+# Borra los datos pero conserva el esquema
+npx wrangler d1 execute ac-luxury-db --local --command \
+  "DELETE FROM bookings; DELETE FROM booking_attempts; DELETE FROM blocked_slots; DELETE FROM login_attempts; DELETE FROM mfa_attempts;"
+```
+
+Si prefieres empezar sin esquema, borra el estado completo y vuelve a aplicar las migraciones:
+
+```bash
+rm -rf .wrangler/state
+npm run db:migrate:local
+```
+
+El esquema **no** lo borran los `DELETE`, así que no hay que volver a migrar en el caso normal. `booking_attempts` es
+la que se llena sola con cada reserva: si la tabla crece mucho durante las pruebas, es la primera que hay que limpiar.
+
 ## Datos pendientes (valores X)
 
 Todo lo que falta definir está en **`src/config.py`**, arriba del archivo:
@@ -41,7 +62,7 @@ Todo lo que falta definir está en **`src/config.py`**, arriba del archivo:
 | `PRECIO_X` | Precio de cada servicio (COP). `None` muestra "$ X". Se puede poner un precio distinto por servicio en `SERVICES`. |
 | `DURACION_X` | Duración de los servicios en minutos (hoy 90 para todos). |
 | `DURACION_COMBO_X` / `DURACION_TRIPLE_X` | Duración de los combos de 2 y de 3 servicios. |
-| `HORA_INICIO_X` / `HORA_FIN_X` | Horario laboral. Para horarios distintos por día o almuerzo, editar `BUSINESS_HOURS`. |
+| `HORA_INICIO_X` / `HORA_FIN_X` | Horario laboral: define cuándo se pueden **iniciar** citas. Una cita puede terminar después del cierre. Para horarios distintos por día o almuerzo, editar `BUSINESS_HOURS`. |
 | `COBERTURA_X` | Barrios que atiende. Vacío = cualquier barrio. |
 | `RECARGO_DOMICILIO_X` | Recargo de domicilio en COP. |
 
@@ -50,10 +71,49 @@ El WhatsApp de Angélica está en `WHATSAPP` (`57` + celular, solo dígitos).
 Otros ajustes de agenda en el mismo archivo: `TRAVEL_BUFFER_MIN` (traslado entre citas, 45 min), `SLOT_STEP_MIN`,
 `MIN_NOTICE_HOURS`, `BOOKING_WINDOW_DAYS`, `PENDING_TTL_HOURS`.
 
+`PENDING_TTL_HOURS` (12 h) es el plazo que tiene Angélica para responder, y solo aplica a **citas próximas**: una
+pendiente para dentro de tres semanas no se libera por antigüedad de la reserva, porque el horario volvería al
+calendario mientras la clienta sigue esperando respuesta y otra persona podría tomarlo (`db._active`). Superada la
+cita, una pendiente sin confirmar ya no bloquea nada. El panel marca las vencidas como tales y se pueden cancelar a
+mano si la clienta nunca contestó.
+
 `BOOKING_WINDOW_DAYS` es el único que se puede sobreescribir desde el entorno
 (`npx wrangler secret put BOOKING_WINDOW_DAYS`, o en `.dev.vars`), sin editar código.
 
 Textos de "Sobre mí" y certificaciones: `public/index.html`. Fotos: ver `public/img/portafolio/LEEME.md`.
+
+## Topes de la agenda
+
+Tres reglas, en `config.py`:
+
+| Regla | Valor | Qué previene |
+|---|---|---|
+| Citas activas por teléfono y fecha | 1 | agendar cuatro citas el mismo día, y llenar un día entero con un solo teléfono |
+| Reservas creadas por teléfono / 24 h | 8 | crear y cancelar rápido, que no activa ninguna regla de estado |
+| Reservas creadas por IP / 1 h | 20 | inundar desde una sola máquina |
+
+**"Activa" y "creada" son distintas.** *Activa* ocupa un horario ahora mismo (pendiente no
+vencida + confirmada, vía `db._active()`): es un estado y baja sola cuando la cita se vence,
+se cancela o se completa. *Creada* cuenta cuántas veces se reservó en una ventana móvil: es un
+ritmo y baja sola 24 h (o 1 h) después de la más antigua. La primera no ve el caso de crear y
+cancelar rápido, que deja cero activas y aun así llena el panel de ruido.
+
+El tope por teléfono es **1 por día y no 3 en total**, porque un día tiene 4 huecos: con 3 se
+podía llenar el día entero desde un solo número. Y con 1, llenarlo exige cuatro teléfonos
+distintos. Quien quiera varios servicios agenda un **combo**, que es justo para qué están.
+
+El de IP va **holgado a propósito**: en Colombia hay CGNAT y un hogar comparte IP, así que un
+tope de "1 por día" bloquearía a las familias. Un tope total de citas bloquearía a la clienta
+que agenda para ella y su hija.
+
+Son topes de velocidad, no muros: con 8/día, un script con un solo teléfono necesita ~10 días
+para llenar la ventana. Y si el atacante usa varios teléfonos, ninguna regla de conteo lo
+detiene. El `COUNT` y el `INSERT` tampoco son atómicos, así que el tope puede pasarse por uno
+bajo concurrencia; `is_slot_bookable` sigue impidiendo el doble booking de un horario, que es el
+daño que importa.
+
+Los tres devuelven **429 con enlace a WhatsApp**, porque un tope tiene que sonar a ayuda: con
+CGNAT un falso positivo por IP es fácil y nunca debe dejar el error sin salida.
 
 ## Combos
 
@@ -84,8 +144,10 @@ BUNDLES = [
 
 1. `GET /api/config` entrega servicios, precios, días abiertos y la ventana de reserva.
 2. `GET /api/availability?service=<id>&from=YYYY-MM-DD&days=N` calcula la grilla de horarios por día.
-   Cada cita ocupa `[inicio, fin + traslado)`; un horario se ofrece solo si su intervalo no choca con otra cita o bloqueo
-   y respeta la anticipación mínima.
+   La grilla cubre todo el horario laboral (de apertura a cierre, de 30 en 30 min) sin importar la
+   duración del servicio: el cierre es el último **inicio** posible y la cita puede terminar después
+   de él. Cada cita ocupa `[inicio, fin + traslado)`; un horario se ofrece solo si su intervalo no
+   choca con otra cita o bloqueo y respeta la anticipación mínima.
 3. `POST /api/bookings` valida Turnstile y los datos, y guarda la cita como **pendiente** con un código (`AC-XXXXX`).
    La inserción es una única sentencia condicional (`INSERT … SELECT … WHERE NOT EXISTS`), por lo que dos personas que
    reservan el mismo horario a la vez no pueden quedar ambas registradas.
@@ -93,8 +155,14 @@ BUNDLES = [
    red), `booking.js` lo detecta —script que no carga, script que llega sin `turnstile`, `render()` que falla o 12 s de
    silencio— y muestra un aviso con dos salidas: reintentar la verificación (hasta 2 veces) o escribir por WhatsApp con el
    resumen ya escrito. Ningún caso deja el botón de confirmar sin respuesta.
-4. La clienta abre WhatsApp con el resumen y Angélica confirma. Una cita pendiente sin confirmar libera el horario
-   pasadas `PENDING_TTL_HOURS` horas.
+4. `POST /api/bookings` lleva una **llave de idempotencia** (`form_token`) que el navegador genera al abrir el
+   formulario. *Antes* de validar Turnstile se busca si esa llave ya creó una cita; si la encontró se devuelve esa
+   misma cita con 201 en vez de crear otra. Eso es lo que hace que una clienta a la que se le perdió la respuesta
+   pueda reintentar y reciba su código, en lugar de ver "ese horario ya está reservado" mientras Angélica tiene una
+   cita que nadie sabe que existe.
+
+5. La clienta abre WhatsApp con el resumen y Angélica confirma. Una cita pendiente sigue reservando el horario hasta
+   que su cita empiece, o hasta que Angélica la confirme o cancele.
 
 ## Panel de administración (`/admin/`)
 
@@ -169,7 +237,7 @@ npm run test:smoke   # contra producción, sin crear datos
 ```
 
 - **Unitarias** (`tests/unit`): horarios, traslado, validación, fechas, sesión HMAC, transiciones de estado y
-  bloqueos.
+  bloqueos, invariantes de la carta de servicios, y qué restricción única falló al insertar.
 - **Integración** (`tests/integration`): levantan **dos Workers reales** con `wrangler dev`, cada uno con su propia
   D1 y sus propios secretos. Uno usa el Turnstile de prueba que aprueba y el otro el que rechaza. Cubren:
   - happy paths y errores 400/401/403/404/409/422/429;
@@ -187,6 +255,11 @@ Cada test que agenda recibe un día libre propio del fixture `free_day`. Como en
 caben todos, los tests amplían la ventana a 60 días con `BOOKING_WINDOW_DAYS` en `.env.test`; el valor sale de
 `TEST_WINDOW_DAYS` en `tests/helpers.py` para que el pool de días y el Worker coincidan. Si agregas un test que agenda
 y el pool se agota, ese es el número que hay que subir.
+
+Además, cada test usa **su propia IP y su propio teléfono** (`conftest._ip_para` y `helpers.random_phone`), porque los
+topes de la agenda son acumulativos y 45 tests compartiendo `127.0.0.1` se toparían entre sí. No conviene "arreglarlo"
+borrando la tabla entre tests: `Instance.sql()` lanza un subproceso `wrangler` y cuesta unos 3 s por test, lo que
+multiplica por cinco el tiempo de la suite.
 
 ## Estructura
 

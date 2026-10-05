@@ -86,3 +86,16 @@ BOOKING_WINDOW_DAYS = 21
 
 # Una cita "pendiente" que Angélica no confirma se libera después de estas horas.
 PENDING_TTL_HOURS = 12
+
+# Una cita activa por teléfono y fecha. Un día tiene 4 huecos, así que con este tope
+# llenarlo exige cuatro teléfonos distintos. También evita el absurdo de cuatro citas el
+# mismo día; los combos son la salida para quien quiere varios servicios en una visita.
+MAX_ACTIVE_PER_PHONE_DAY = 1
+
+# Reservas creadas por teléfono en 24 h, con ventana móvil. Cubre el crear-y-cancelar
+# rápido, que no activa ninguna de las reglas de estado.
+MAX_PER_PHONE_DAY = 8
+
+# Reservas creadas por IP en 1 h. Va holgado a propósito: en Colombia hay CGNAT y un hogar
+# comparte IP. Frena al script, no a la familia.
+MAX_PER_IP_HOUR = 20

@@ -39,6 +39,7 @@ def test_home_is_up_with_security_headers(client):
     assert "Reserva en tres pasos" in r.text
     assert "default-src 'self'" in r.headers["content-security-policy"]
     assert r.headers["x-frame-options"] == "DENY"
+    assert r.headers["strict-transport-security"].startswith("max-age=")
 
 
 def test_config_uses_real_turnstile_key(client):

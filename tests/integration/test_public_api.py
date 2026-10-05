@@ -7,7 +7,7 @@ import pytest
 
 import availability
 import config
-from helpers import TEST_WINDOW_DAYS, booking_payload, slots_of
+from helpers import TEST_WINDOW_DAYS, booking_payload, expire_booking, form_token, seed_attempts, slots_of
 
 pytestmark = pytest.mark.integration
 
@@ -38,7 +38,16 @@ def test_config_shape(api):
 
 
 def test_api_responses_are_not_cached(api):
-    assert api.get("/api/availability", params={"service": "lifting"}).headers["cache-control"] == "no-store"
+    r = api.get("/api/availability", params={"service": "lifting"})
+    assert r.headers["cache-control"] == "no-store"
+    assert r.headers["x-content-type-options"] == "nosniff"
+
+
+def test_api_security_headers_on_cookie_responses(api):
+    r = api.post("/api/admin/logout")
+    assert r.status_code == 200
+    assert "set-cookie" in r.headers
+    assert r.headers["x-content-type-options"] == "nosniff"
 
 
 #  availability
@@ -136,10 +145,37 @@ def test_combo_books_as_one_slot_and_blocks_its_own_duration(api, server, free_d
     assert not slots_of(api, free_day)["11:00"]
 
 
+def test_long_combo_offers_slots_until_closing_and_blocks_them(api, free_day):
+    assert config.SERVICES_BY_ID["combo-triple"]["duration"] == config.DURACION_TRIPLE_X
+
+    slots = slots_of(api, free_day, service="combo-triple")
+    assert slots["08:00"]
+    assert slots["14:30"]
+    assert slots["17:30"]
+    assert "18:00" not in slots
+
+    r = api.post("/api/bookings", json=booking_payload(free_day, "14:00", service="combo-triple"))
+    assert r.status_code == 201, r.text
+
+    slots = slots_of(api, free_day, service="combo-triple")
+    assert not any(slots[t] for t in ["10:00", "14:00", "15:00", "16:00", "17:00", "17:30"])
+    assert slots["09:30"]
+
+    simple = slots_of(api, free_day)
+    assert simple["11:30"]
+    assert not simple["12:00"]
+
+
 def test_concurrent_bookings_same_slot_only_one_wins(server, free_day):
-    payload = booking_payload(free_day, "14:00", service="lifting")
+    """Dos personas compitiendo por el mismo horario: cada una con su propia llave.
+
+    Si compartieran la llave, el servidor las trataría como un reintento del mismo envío y
+    las dos obtendrían la misma cita — que es lo correcto para un reintento, pero no
+    prueba nada sobre la carrera del horario.
+    """
 
     def book(_):
+        payload = booking_payload(free_day, "14:00", service="lifting", form_token=form_token())
         with httpx.Client(base_url=server.base_url, timeout=60) as c:
             return c.post("/api/bookings", json=payload).status_code
 
@@ -187,7 +223,7 @@ def _future_open_day():
     ("pasado", -1, "08:00"),
     ("fuera de ventana", TEST_WINDOW_DAYS + 3, "08:00"),
     ("fuera de grilla", None, "08:15"),
-    ("después del cierre", None, "17:00"),
+    ("en el cierre", None, "18:00"),
     ("antes de abrir", None, "06:00"),
 ])
 def test_unbookable_slots_are_rejected(api, label, day_offset, time):
@@ -235,31 +271,199 @@ def test_booking_data_is_stored_normalized(server, api, free_day):
     assert row["busy_until_min"] == 9 * 60 + config.DURACION_X + config.TRAVEL_BUFFER_MIN
 
 
+#  idempotencia
+
+def test_resending_the_same_form_returns_the_same_booking(api, server, free_day):
+    payload = booking_payload(free_day, "08:00")
+
+    first = api.post("/api/bookings", json=payload)
+    assert first.status_code == 201, first.text
+    again = api.post("/api/bookings", json=payload)
+    assert again.status_code == 201, again.text
+    assert again.json() == first.json()
+
+    rows = server.sql(f"SELECT COUNT(*) AS n FROM bookings WHERE date = '{free_day.isoformat()}'")
+    assert rows[0]["n"] == 1
+
+
+def test_replay_happens_before_turnstile_which_is_single_use(api, free_day):
+    payload = booking_payload(free_day, "08:00")
+    assert api.post("/api/bookings", json=payload).status_code == 201
+    assert api.post("/api/bookings", json=payload).status_code == 201
+
+
+def test_same_key_on_a_different_slot_keeps_the_first_booking(api, server, free_day):
+    token = form_token()
+    first = api.post("/api/bookings", json=booking_payload(free_day, "08:00", form_token=token))
+    second = api.post("/api/bookings", json=booking_payload(free_day, "14:00", form_token=token))
+    assert first.status_code == 201 and second.status_code == 201
+    assert second.json()["code"] == first.json()["code"]
+    assert second.json()["summary"] == first.json()["summary"]
+    rows = server.sql(f"SELECT COUNT(*) AS n FROM bookings WHERE date = '{free_day.isoformat()}'")
+    assert rows[0]["n"] == 1
+
+
+def test_distinct_keys_on_the_same_slot_still_collide(api, free_day):
+    first = api.post("/api/bookings", json=booking_payload(free_day, "08:00"))
+    second = api.post("/api/bookings", json=booking_payload(free_day, "08:00"))
+    assert first.status_code == 201
+    assert second.status_code == 409
+
+
+@pytest.mark.parametrize("bad", ["", "corta", "x" * 65, "con espacio/simbolos$$", None, 12345])
+def test_missing_or_malformed_form_token_is_rejected(api, free_day, bad):
+    r = api.post("/api/bookings", json=booking_payload(free_day, "08:00", form_token=bad))
+    assert r.status_code == 422, (bad, r.text)
+    assert "form_token" in r.json()["fields"]
+
+
+def test_replay_of_a_cancelled_booking_does_not_resurrect_it(api, server, admin, free_day):
+    payload = booking_payload(free_day, "08:00")
+    created = api.post("/api/bookings", json=payload)
+    assert created.status_code == 201
+    code = created.json()["code"]
+    admin.patch(f"/api/admin/bookings/{code}", json={"status": "cancelled"})
+
+    r = api.post("/api/bookings", json=payload)
+    assert r.status_code == 409
+    row = server.sql(f"SELECT status FROM bookings WHERE code = '{code}'")[0]
+    assert row["status"] == "cancelled"
+
+
+def test_concurrent_requests_with_one_key_create_one_booking(server, free_day):
+    token = form_token()
+    times = ["08:00", "11:00", "14:00"]
+
+    def book(t):
+        payload = booking_payload(free_day, t, form_token=token)
+        with httpx.Client(base_url=server.base_url, timeout=60) as c:
+            r = c.post("/api/bookings", json=payload)
+            return r.status_code, r.json()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(times)) as pool:
+        results = list(pool.map(book, times))
+
+    assert {status for status, _ in results} == {201}, results
+    assert len({body.get("code") for _, body in results}) == 1
+    rows = server.sql(f"SELECT COUNT(*) AS n FROM bookings WHERE date = '{free_day.isoformat()}'")
+    assert rows[0]["n"] == 1
+
+
 #  comportamientos
 
 def test_unconfirmed_pending_booking_expires_and_frees_slot(server, api, admin, free_day):
     first = api.post("/api/bookings", json=booking_payload(free_day, "08:00")).json()["code"]
     assert not slots_of(api, free_day)["08:00"]
 
-    server.sql(f"UPDATE bookings SET created_at = datetime('now', '-{config.PENDING_TTL_HOURS + 1} hours') WHERE code = '{first}'")
+    expire_booking(server, first)
     assert slots_of(api, free_day)["08:00"]
 
-    listed = {b["code"]: b for b in admin.get("/api/admin/bookings", params={"from": free_day.isoformat(), "to": free_day.isoformat()}).json()["bookings"]}
+    ayer = (availability.now_local().date() - timedelta(days=1)).isoformat()
+    listed = {b["code"]: b for b in admin.get(
+        "/api/admin/bookings", params={"from": ayer, "to": ayer}).json()["bookings"]}
     assert listed[first]["expired"] is True
 
-    second = api.post("/api/bookings", json=booking_payload(free_day, "08:00", name="Segunda Clienta"))
-    assert second.status_code == 201
-    r = admin.patch(f"/api/admin/bookings/{first}", json={"status": "confirmed"})
-    assert r.status_code == 409
-    assert admin.patch(f"/api/admin/bookings/{second.json()['code']}", json={"status": "confirmed"}).status_code == 200
+
+def test_confirming_a_booking_whose_slot_was_taken_returns_409(server, api, admin, free_day):
+    code = api.post("/api/bookings", json=booking_payload(free_day, "08:00")).json()["code"]
+    server.sql(
+        "INSERT INTO bookings (code, service_id, service_name, category, price, duration_min, "
+        "date, start_min, end_min, busy_until_min, customer_name, phone, neighborhood, address) "
+        "SELECT 'AC-RIVAL', service_id, service_name, category, price, duration_min, "
+        "date, start_min, end_min, busy_until_min, 'Cita Rival', '573009999999', "
+        f"'San Fernando', 'Carrera 1 # 2-3' FROM bookings WHERE code = '{code}'"
+    )
+    assert admin.patch(f"/api/admin/bookings/{code}", json={"status": "confirmed"}).status_code == 409
+
+    assert admin.patch("/api/admin/bookings/AC-RIVAL", json={"status": "cancelled"}).status_code == 200
+    assert admin.patch(f"/api/admin/bookings/{code}", json={"status": "confirmed"}).status_code == 200
 
 
 def test_expired_pending_can_still_be_confirmed_if_slot_free(server, api, admin, free_day):
     code = api.post("/api/bookings", json=booking_payload(free_day, "15:00", service="henna")).json()["code"]
-    server.sql(f"UPDATE bookings SET created_at = datetime('now', '-{config.PENDING_TTL_HOURS + 2} hours') WHERE code = '{code}'")
-    r = admin.patch(f"/api/admin/bookings/{code}", json={"status": "confirmed"})
-    assert r.status_code == 200
-    assert not slots_of(api, free_day, "henna")["15:00"]  # confirmada vuelve a ocupar
+    expire_booking(server, code)
+    assert slots_of(api, free_day, "henna")["15:00"]
+    assert admin.patch(f"/api/admin/bookings/{code}", json={"status": "confirmed"}).status_code == 200
+    server.sql(f"UPDATE bookings SET date = '{free_day.isoformat()}' WHERE code = '{code}'")
+    assert not slots_of(api, free_day, "henna")["15:00"]
+
+
+#  topes de la agenda
+#
+# Cada test usa su propio número, como su propia IP (ver conftest._ip_para). La cuota es de
+# 8 en 24 h y `booking_attempts` es una tabla compartida por toda la suite, así que un
+# número compartido acabaría topado por los reservas de los demás tests.
+TEL_DIA = "300 000 0001"
+TEL_VENCIDA = "300 000 0002"
+TEL_24H = "300 000 0003"
+TEL_INTENTOS = "300 000 0004"
+
+
+def _tel(telefono: str) -> str:
+    """Como lo normaliza el servidor, para poder consultar la tabla por teléfono."""
+    return "57" + telefono.replace(" ", "")
+
+
+def test_one_active_booking_per_phone_and_day(api, server, free_day):
+    first = api.post("/api/bookings", json=booking_payload(free_day, "08:00", phone=TEL_DIA))
+    assert first.status_code == 201, first.text
+
+    second = api.post("/api/bookings", json=booking_payload(free_day, "11:00", phone=TEL_DIA))
+    assert second.status_code == 429, second.text
+    assert "Ya tienes una cita" in second.json()["error"]
+    assert second.json()["whatsapp_url"].startswith("https://wa.me/")
+    rows = server.sql(f"SELECT COUNT(*) AS n FROM bookings WHERE date = '{free_day.isoformat()}'")
+    assert rows[0]["n"] == 1
+
+
+def test_expired_pending_does_not_count_towards_the_daily_cap(api, server, free_day):
+    first = api.post("/api/bookings", json=booking_payload(free_day, "08:00", phone=TEL_VENCIDA))
+    assert first.status_code == 201
+    expire_booking(server, first.json()["code"])
+    assert api.post("/api/bookings", json=booking_payload(free_day, "11:00", phone=TEL_VENCIDA)).status_code == 201
+
+
+def test_phone_daily_cap_blocks_the_ninth(server, free_day):
+    seed_attempts(server, config.MAX_PER_PHONE_DAY, phone=_tel(TEL_24H))
+    with server.client() as c:
+        r = c.post("/api/bookings", json=booking_payload(free_day, "08:00", phone=TEL_24H))
+    assert r.status_code == 429, r.text
+    assert "varias reservas" in r.json()["error"]
+    assert server.sql(f"SELECT COUNT(*) AS n FROM bookings WHERE date = '{free_day.isoformat()}'")[0]["n"] == 0
+
+
+def test_ip_hourly_cap_blocks_the_twenty_first(server, free_day):
+    seed_attempts(server, config.MAX_PER_IP_HOUR, ip="1.2.3.4")
+    with server.client(headers={"cf-connecting-ip": "1.2.3.4"}) as c:
+        r = c.post("/api/bookings", json=booking_payload(free_day, "08:00"))
+    assert r.status_code == 429, r.text
+    assert "Demasiadas reservas" in r.json()["error"]
+
+
+def test_ip_cap_does_not_leak_into_other_connections(server, free_day):
+    seed_attempts(server, config.MAX_PER_IP_HOUR, ip="1.2.3.4")
+    with server.client(headers={"cf-connecting-ip": "5.6.7.8"}) as c:
+        r = c.post("/api/bookings", json=booking_payload(free_day, "08:00"))
+    assert r.status_code == 201, r.text
+
+
+def test_successful_booking_records_the_attempt(server, api, free_day):
+    r = api.post("/api/bookings", json=booking_payload(free_day, "08:00", phone=TEL_INTENTOS))
+    assert r.status_code == 201, r.text
+    rows = server.sql(f"SELECT ip FROM booking_attempts WHERE phone = '{_tel(TEL_INTENTOS)}'")
+    assert len(rows) == 1
+    assert rows[0]["ip"]
+
+
+def test_attempts_are_only_counted_on_success(api, server, free_day):
+    tel = "300 000 0005"
+    api.post("/api/bookings", json=booking_payload(free_day, "08:00", phone=tel))                    # 201
+    api.post("/api/bookings", json=booking_payload(free_day, "08:00", phone=tel))                    # 409, horario tomado
+    api.post("/api/bookings", json=booking_payload(free_day, "14:00", phone=tel, form_token="corta"))  # 422
+    counted = server.sql(
+        f"SELECT COUNT(*) AS n FROM booking_attempts WHERE phone = '{_tel(tel)}'"
+    )[0]["n"]
+    assert counted == 1
 
 
 #  rutas
@@ -284,6 +488,7 @@ def test_static_site_and_security_headers(api):
     assert "default-src 'self'" in csp and "challenges.cloudflare.com" in csp
     assert r.headers.get("x-frame-options") == "DENY"
     assert r.headers.get("x-content-type-options") == "nosniff"
+    assert r.headers.get("strict-transport-security", "").startswith("max-age=")
 
 
 def test_static_404_page(api):

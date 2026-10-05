@@ -1,12 +1,14 @@
 import time
+from datetime import timedelta
 from urllib.parse import unquote
 
 import httpx
 import pytest
 
 import auth
+import availability
 import mfa
-from helpers import booking_payload, slots_of
+from helpers import booking_payload, expire_booking, slots_of
 
 pytestmark = pytest.mark.integration
 
@@ -26,6 +28,7 @@ def test_login_requires_mfa_when_enabled(server):
         assert r.json() == {"ok": True, "mfa_required": True}
         cookie = r.headers["set-cookie"]
         assert cookie.startswith(f"{auth.MFA_COOKIE_NAME}=")
+        assert r.headers["x-content-type-options"] == "nosniff"
         for flag in ("HttpOnly", "SameSite=Strict", "Path=/api/admin", f"Max-Age={auth.MFA_TTL_S}"):
             assert flag in cookie
         assert f"{auth.COOKIE_NAME}=" not in cookie
@@ -38,6 +41,7 @@ def test_mfa_happy_path_sets_session_cookie(server):
         r = c.post("/api/admin/mfa", json={"code": mfa.current_code(server.totp_secret)})
         assert r.status_code == 200
         cookies = r.headers.get_list("set-cookie")
+        assert r.headers["x-content-type-options"] == "nosniff"
         assert any(ck.startswith(f"{auth.COOKIE_NAME}=") for ck in cookies)
         assert any(ck.startswith(f"{auth.MFA_COOKIE_NAME}=;") and "Max-Age=0" in ck for ck in cookies)
         assert c.get("/api/admin/session").json()["authenticated"] is True
@@ -211,8 +215,62 @@ def test_brute_force_lockout(strict_server):
 
 #  citas
 
+def test_cancelling_every_booking_frees_the_whole_day(api, admin, server, free_day):
+    codes = [_book(api, free_day, t) for t in ("08:00", "10:30", "13:00", "15:30")]
+    assert len([s for s, a in slots_of(api, free_day).items() if a]) == 0
+
+    for code in codes:
+        r = admin.patch(f"/api/admin/bookings/{code}", json={"status": "cancelled"})
+        assert r.status_code == 200, r.text
+        assert r.json()["booking"]["status"] == "cancelled"
+
+    rows = server.sql(f"SELECT status FROM bookings WHERE date = '{free_day.isoformat()}'")
+    assert {row["status"] for row in rows} == {"cancelled"}
+    assert len([s for s, a in slots_of(api, free_day).items() if a]) == len(slots_of(api, free_day))
+
+
+def test_cancelling_a_confirmed_booking_frees_the_slot(api, admin, free_day):
+    code = _book(api, free_day, "08:00")
+    assert admin.patch(f"/api/admin/bookings/{code}", json={"status": "confirmed"}).status_code == 200
+    assert slots_of(api, free_day)["08:00"] is False
+    assert admin.patch(f"/api/admin/bookings/{code}", json={"status": "cancelled"}).status_code == 200
+    assert slots_of(api, free_day)["08:00"] is True
+
+
+def test_completing_a_booking_frees_the_slot(api, admin, free_day):
+    code = _book(api, free_day, "08:00")
+    admin.patch(f"/api/admin/bookings/{code}", json={"status": "confirmed"})
+    assert admin.patch(f"/api/admin/bookings/{code}", json={"status": "completed"}).status_code == 200
+    assert slots_of(api, free_day)["08:00"] is True
+
+
+def test_pending_of_a_future_booking_survives_the_ttl(server, api, admin, free_day):
+    code = _book(api, free_day, "08:00")
+    server.sql(f"UPDATE bookings SET created_at = datetime('now', '-13 hours') WHERE code = '{code}'")
+
+    items = admin.get(
+        "/api/admin/bookings", params={"from": free_day.isoformat(), "to": free_day.isoformat()}
+    ).json()["bookings"]
+    assert items[0]["code"] == code
+    assert items[0]["expired"] is False, "la pendiente de una cita futura se venció por antigüedad"
+    # Y el horario sigue reservado: es lo que esperaría la clienta.
+    assert slots_of(api, free_day)["08:00"] is False
+
+
+def test_pending_stops_blocking_once_the_appointment_has_passed(server, api, admin, free_day):
+    code = _book(api, free_day, "08:00")
+    assert slots_of(api, free_day)["08:00"] is False
+
+    expire_booking(server, code)
+    assert slots_of(api, free_day)["08:00"] is True
+
+    ayer = (availability.now_local().date() - timedelta(days=1)).isoformat()
+    items = admin.get("/api/admin/bookings", params={"from": ayer, "to": ayer}).json()["bookings"]
+    assert items[0]["code"] == code and items[0]["expired"] is True
+
+
 def test_list_bookings_and_filters(api, admin, free_day):
-    a = _book(api, free_day, "08:00", name="Primera Clienta")
+    a = _book(api, free_day, "08:00", name="Primera Clienta", phone="300 123 4567")
     b = _book(api, free_day, "11:00", service="lifting", name="Segunda Clienta")
     params = {"from": free_day.isoformat(), "to": free_day.isoformat()}
 

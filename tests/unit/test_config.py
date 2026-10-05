@@ -31,9 +31,35 @@ def test_bundles_come_first_so_they_are_offered_first():
 
 
 def test_every_open_day_can_fit_at_least_one_service():
-    """Si un combo no cabe en un día hábil, ese día queda imposible de agendar."""
     for weekday, spans in config.BUSINESS_HOURS.items():
         for open_hhmm, close_hhmm in spans:
             open_minutes = (to_minutes(close_hhmm) - to_minutes(open_hhmm))
             for s in config.ALL_SERVICES:
                 assert s["duration"] <= open_minutes, f"{s['id']} no cabe en el día {weekday}"
+
+
+def test_last_slot_never_runs_past_midnight():
+    for weekday, spans in config.BUSINESS_HOURS.items():
+        for open_hhmm, close_hhmm in spans:
+            last_start = to_minutes(close_hhmm) - config.SLOT_STEP_MIN
+            for s in config.ALL_SERVICES:
+                assert last_start + s["duration"] + config.TRAVEL_BUFFER_MIN <= 24 * 60, (
+                    f"{s['id']} el día {weekday} ocupa después de medianoche"
+                )
+
+
+def test_booking_limits_are_sane():
+    """Los topes tienen que ser alcanzables por una clienta real y frenar a un script."""
+    assert config.MAX_ACTIVE_PER_PHONE_DAY == 1
+
+    per_day = min(
+        (to_minutes(close) - to_minutes(open)) // (s["duration"] + config.TRAVEL_BUFFER_MIN)
+        for s in config.ALL_SERVICES for spans in config.BUSINESS_HOURS.values()
+        for open, close in spans
+    )
+    assert config.MAX_ACTIVE_PER_PHONE_DAY < per_day
+
+    slots_in_window = per_day * config.BOOKING_WINDOW_DAYS
+    assert config.MAX_PER_IP_HOUR < slots_in_window
+    assert config.MAX_PER_IP_HOUR >= 4        # una familia grande agendando a la vez
+    assert config.MAX_PER_PHONE_DAY > config.MAX_ACTIVE_PER_PHONE_DAY

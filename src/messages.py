@@ -43,3 +43,28 @@ def booking_whatsapp_text(b: dict) -> str:
 
 def whatsapp_url(text: str, number: str = config.WHATSAPP) -> str:
     return f"https://wa.me/{number}?text={quote(text)}"
+
+
+# Topes de la agenda. Todos devuelven 429 y ofrecen WhatsApp, porque un tope tiene que
+# sonar a ayuda y no a castigo: con CGNAT un falso positivo por IP es fácil.
+
+LIMIT_ONE_PER_DAY = (
+    "Ya tienes una cita para ese día. Si quieres añadir otro servicio, escríbenos por "
+    "WhatsApp y lo ajustamos."
+)
+LIMIT_PHONE_DAY = (
+    "Ya hiciste varias reservas en las últimas 24 horas. Si necesitas cambiar algo, "
+    "escríbenos por WhatsApp."
+)
+LIMIT_IP_HOUR = (
+    "Demasiadas reservas desde esta conexión. Si eres clienta y necesitas agendar, "
+    "escríbenos por WhatsApp."
+)
+
+
+def limit_whatsapp_url(limit_message: str) -> str:
+    return whatsapp_url(
+        "Hola Angélica ✨\n\n"
+        f"{limit_message}\n\n"
+        "Podemos acomodarlo, escríbeme por acá."
+    )

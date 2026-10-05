@@ -5,7 +5,7 @@ import auth
 import availability
 import db
 import mfa
-from responses import error, json_cookies_response, json_response, read_json
+from responses import client_ip, error, json_cookies_response, json_response, read_json
 
 MAX_RANGE_DAYS = 120
 
@@ -20,10 +20,6 @@ def _totp_secret(env) -> str | None:
 
 def _is_https(request) -> bool:
     return request.url.startswith("https://")
-
-
-def _client_ip(request) -> str:
-    return request.headers.get("cf-connecting-ip") or "local"
 
 
 def is_authenticated(env, request) -> bool:
@@ -48,7 +44,7 @@ async def login(env, request):
     if not secret or not password:
         return error(503, "El panel no está configurado (faltan ADMIN_PASSWORD / SESSION_SECRET).")
 
-    ip = _client_ip(request)
+    ip = client_ip(request)
     if await db.failed_logins(env.DB, ip) >= auth.MAX_FAILED_LOGINS:
         return error(429, f"Demasiados intentos. Espera {auth.LOCKOUT_WINDOW_MIN} minutos e intenta de nuevo.")
 
@@ -76,7 +72,7 @@ async def verify_mfa(env, request):
     if not secret or not password or not totp:
         return error(503, "El panel no está configurado para el segundo factor.")
 
-    ip = _client_ip(request)
+    ip = client_ip(request)
     if await db.failed_mfa(env.DB, ip) >= auth.MFA_MAX_ATTEMPTS:
         return error(429, f"Demasiados intentos. Espera {auth.LOCKOUT_WINDOW_MIN} minutos e intenta de nuevo.")
 

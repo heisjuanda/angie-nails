@@ -54,6 +54,7 @@
     tsTimer: null,
     tsRetries: 0,
     submitting: false,
+    formToken: null,
   };
 
   /*  utilidades */
@@ -309,6 +310,12 @@
     ui.notice.hidden = false;
   }
 
+  function newFormToken() {
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
   function showError(field, msg) {
     const node = form.querySelector(`[data-error="${field}"]`);
     if (node) { node.textContent = msg; node.hidden = false; }
@@ -323,9 +330,12 @@
     if (input && input.removeAttribute) input.removeAttribute("aria-invalid");
   }
 
-  function setMessage(msg) {
-    ui.message.textContent = msg || "";
-    ui.message.hidden = !msg;
+  function setMessage(msg, { link = null } = {}) {
+    ui.message.replaceChildren();
+    if (!msg) { ui.message.hidden = true; return; }
+    ui.message.append(msg);
+    if (link) ui.message.append(h("a", { href: link, target: "_blank", rel: "noopener", text: "Escríbenos por WhatsApp →" }));
+    ui.message.hidden = false;
   }
 
   function clientValidate() {
@@ -383,6 +393,7 @@
       address: form.elements.address.value,
       notes: form.elements.notes.value,
       turnstile_token: state.tsToken,
+      form_token: state.formToken,
     };
 
     try {
@@ -398,7 +409,7 @@
         state.time = null;
         await loadAvailability({ force: true });
       }
-      setMessage(data.error || "No pudimos agendar la cita. Intenta de nuevo.");
+      setMessage(data.error || "No pudimos agendar la cita. Intenta de nuevo.", { link: data.whatsapp_url });
     } catch (err) {
       console.error(err);
       setMessage("Sin conexión. Revisa tu internet e intenta de nuevo.");
@@ -439,6 +450,7 @@
   function resetForNewBooking() {
     ["name", "phone", "neighborhood", "address", "notes"].forEach((n) => { form.elements[n].value = ""; });
     state.time = null;
+    state.formToken = newFormToken();
     ui.success.hidden = true;
     ui.summary.hidden = false;
     renderSummary();
@@ -463,6 +475,7 @@
     renderDates();
     renderTimes();
     renderSummary();
+    state.formToken = newFormToken();
     initTurnstile();
 
     ui.prev.addEventListener("click", () => { state.page -= 1; renderDates(); });

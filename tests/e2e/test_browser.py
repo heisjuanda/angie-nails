@@ -80,9 +80,9 @@ def pick(page, day, time, service_name):
     page.locator(f".time-btn[aria-label='{messages.format_time_es(time)}']").click()
 
 
-def fill_customer(page, name="Clienta Navegador"):
+def fill_customer(page, name="Clienta Navegador", phone="311 222 3344"):
     page.fill("input[name=name]", name)
-    page.fill("input[name=phone]", "311 222 3344")
+    page.fill("input[name=phone]", phone)
     page.fill("input[name=neighborhood]", "El Peñón")
     page.fill("input[name=address]", "Avenida 4 Oeste # 2-10 apto 301")
 
@@ -110,6 +110,10 @@ def admin_login(page, password, totp_secret=None):
         page.fill("input[name=code]", mfa.current_code(totp_secret))
         page.click("[data-login-form] button[type=submit]")
     page.wait_for_selector("[data-view=app]:not([hidden])")
+
+
+# Un número por clienta, para que el enlace de WhatsApp del panel sea comprobable.
+PHONES = {"Paola Ríos": "300 111 0001", "Camila Díaz": "300 111 0002"}
 
 
 #  clienta
@@ -168,6 +172,33 @@ def test_booking_says_so_when_turnstile_script_is_blocked(mobile, server, free_d
     page.click("[data-ts-retry]")
     notice.wait_for(state="visible", timeout=25_000)
     assert page.locator("[data-ts-whatsapp]").is_visible()
+
+
+def test_booking_again_rotates_the_key(mobile, server, free_day):
+    page = mobile.page
+    open_booking(page)
+    pick(page, free_day, "08:00", "Semipermanente")
+    fill_customer(page)
+    wait_turnstile(page)
+    page.click("[data-submit]")
+    page.wait_for_selector("[data-success]:not([hidden])")
+    first = page.text_content("[data-success-code]")
+
+    page.click("[data-new-booking]")
+    page.wait_for_selector("[data-success]", state="hidden")
+    pick(page, free_day, "11:00", "Polygel")
+    fill_customer(page, phone="322 555 6677")
+    wait_turnstile(page)
+    page.click("[data-submit]")
+    page.wait_for_selector("[data-success]:not([hidden])")
+    second = page.text_content("[data-success-code]")
+
+    assert re.fullmatch(r"AC-[A-Z0-9]{5}", first)
+    assert re.fullmatch(r"AC-[A-Z0-9]{5}", second)
+    assert first != second
+    rows = server.sql(f"SELECT COUNT(*) AS n FROM bookings WHERE date = '{free_day.isoformat()}'")
+    assert rows[0]["n"] == 2
+    assert page.locator("[data-ts-notice]").is_hidden()
 
 
 def test_form_errors_are_shown_without_calling_api(mobile):
@@ -288,7 +319,8 @@ def test_admin_confirms_and_cancels_bookings(desktop, server, free_day):
     import httpx
     codes = []
     for t, name in (("08:00", "Paola Ríos"), ("11:00", "Camila Díaz")):
-        r = httpx.post(f"{server.base_url}/api/bookings", json=booking_payload(free_day, t, name=name))
+        r = httpx.post(f"{server.base_url}/api/bookings",
+                       json=booking_payload(free_day, t, name=name, phone=PHONES[name]))
         codes.append(r.json()["code"])
 
     page = desktop.page
@@ -301,7 +333,7 @@ def test_admin_confirms_and_cancels_bookings(desktop, server, free_day):
     toast = page.locator("[data-toast]")
     toast.wait_for(state="visible")
     assert "confirmada" in toast.text_content()
-    assert toast.locator("a").get_attribute("href").startswith("https://wa.me/573001234567")
+    assert toast.locator("a").get_attribute("href").startswith("https://wa.me/573001110001")
     page.wait_for_selector(f".booking-card[data-code='{codes[0]}'] .badge-confirmed")
 
     cancel = page.locator(f".booking-card[data-code='{codes[1]}'] [data-action=cancelled]")
