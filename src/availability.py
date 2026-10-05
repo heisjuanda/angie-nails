@@ -1,12 +1,3 @@
-"""Cálculo de horarios disponibles.
-
-Lógica pura (sin dependencias de Cloudflare) para poder probarla con pytest.
-Los tiempos se manejan como minutos desde la medianoche, en hora de Colombia.
-
-Una cita ocupa [inicio, fin + desplazamiento). Dos citas chocan si esos
-intervalos se solapan, lo que garantiza el tiempo de traslado entre casas.
-"""
-
 from datetime import date, datetime, timedelta
 
 import config

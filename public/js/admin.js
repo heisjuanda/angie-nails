@@ -1,4 +1,3 @@
-/* AC Luxury Aesthetics — panel de administración. */
 (() => {
   const DOW = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
   const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -34,9 +33,9 @@
   const dateLabel = (s) => { const d = parseDate(s); const t = `${DOW[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`; return t[0].toUpperCase() + t.slice(1); };
   const phoneLabel = (p) => p.replace(/^57(\d{3})(\d{3})(\d{4})$/, "$1 $2 $3");
 
-  /* ---------------------------------------------------------------- API */
+  /*  API */
   class ApiError extends Error {
-    constructor(status, message) { super(message); this.status = status; }
+    constructor(status, message, data) { super(message); this.status = status; this.data = data; }
   }
 
   async function api(path, { method = "GET", body } = {}) {
@@ -47,17 +46,28 @@
       body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => ({}));
-    if (res.status === 401 && path !== "/login") { showLogin(); throw new ApiError(401, data.error); }
-    if (!res.ok) throw new ApiError(res.status, data.error || "Algo salió mal. Intenta de nuevo.");
+    if (res.status === 401 && path !== "/login" && path !== "/mfa") { showLogin(); throw new ApiError(401, data.error); }
+    if (!res.ok) throw new ApiError(res.status, data.error || "Algo salió mal. Intenta de nuevo.", data);
     return data;
   }
 
-  /* -------------------------------------------------------------- vistas */
+  /*  vistas */
   function showLogin() {
     clearInterval(state.refreshTimer);
     $("[data-view=app]").hidden = true;
     $("[data-view=login]").hidden = false;
+    resetLoginForm();
     $("[data-login-form] input[name=password]").focus();
+  }
+
+  function resetLoginForm() {
+    const form = $("[data-login-form]");
+    const mfaField = form.querySelector("[data-mfa-field]");
+    if (!mfaField) return;
+    mfaField.hidden = true;
+    form.elements.password.disabled = false;
+    form.elements.code.value = "";
+    form.querySelector("button[type=submit]").textContent = "Entrar";
   }
 
   function showApp() {
@@ -79,7 +89,7 @@
     toast.timer = setTimeout(() => { node.hidden = true; }, link ? 20000 : 6000);
   }
 
-  /* ------------------------------------------------------------- agenda */
+  /*  agenda */
   function rangeDates() {
     const today = new Date();
     switch (state.range) {
@@ -193,7 +203,7 @@
     }
   }
 
-  /* ----------------------------------------------------------- bloqueos */
+  /*  bloqueos */
   async function loadBlocks() {
     const list = $("[data-blocks]");
     try {
@@ -262,7 +272,7 @@
     }
   }
 
-  /* --------------------------------------------------------------- init */
+  /*  init */
   function initTabs() {
     $$("[data-tab]").forEach((tab) => tab.addEventListener("click", () => {
       $$("[data-tab]").forEach((t) => {
@@ -279,17 +289,39 @@
 
     $("[data-login-form]").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const input = e.currentTarget.elements.password;
+      const form = e.currentTarget;
+      const mfaField = form.querySelector("[data-mfa-field]");
+      const input = form.elements.password;
+      const codeInput = form.elements.code;
       const err = $("[data-login-error]");
       err.hidden = true;
       try {
-        await api("/login", { method: "POST", body: { password: input.value } });
+        if (mfaField && !mfaField.hidden) {
+          await api("/mfa", { method: "POST", body: { code: codeInput.value } });
+        } else {
+          const res = await api("/login", { method: "POST", body: { password: input.value } });
+          if (res.mfa_required && mfaField) {
+            mfaField.hidden = false;
+            input.disabled = true;
+            form.querySelector("button[type=submit]").textContent = "Verificar";
+            codeInput.focus();
+            return;
+          }
+        }
         input.value = "";
+        if (codeInput) codeInput.value = "";
         showApp();
       } catch (ex) {
+        // Ticket de MFA vencido o ausente: volver a pedir la contraseña.
+        if (ex.status === 401 && ex.data?.step === "password") showLogin();
         err.textContent = ex.message;
         err.hidden = false;
-        input.select();
+        if (mfaField && !mfaField.hidden) {
+          codeInput.value = "";
+          codeInput.select();
+        } else {
+          input.select();
+        }
       }
     });
 

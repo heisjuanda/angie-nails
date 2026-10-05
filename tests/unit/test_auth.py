@@ -25,10 +25,10 @@ def test_token_valid_until_just_before_expiry():
 
 
 @pytest.mark.parametrize("mutate", [
-    lambda t: t[:-2] + ("AA" if not t.endswith("AA") else "BB"),   # firma alterada
-    lambda t: "e30" + t[3:],                                       # payload alterado
-    lambda t: t.replace(".", ""),                                  # sin separador
-    lambda t: t + ".extra",                                        # dos separadores
+    lambda t: t[:-2] + ("AA" if not t.endswith("AA") else "BB"),
+    lambda t: "e30" + t[3:],
+    lambda t: t.replace(".", ""),
+    lambda t: t + ".extra",
     lambda t: "",
 ])
 def test_tampered_tokens_rejected(mutate):
@@ -58,7 +58,7 @@ def test_forged_payload_with_valid_shape_rejected():
     ("clave-admiN", "clave-admin", False),
     ("", "clave-admin", False),
     (None, "clave-admin", False),
-    ("", "", False),          # sin contraseña configurada nunca entra
+    ("", "", False),
 ])
 def test_password_matches(given, expected, ok):
     assert auth.password_matches(given, expected) is ok
@@ -77,6 +77,32 @@ def test_cookie_flags():
         assert flag in c
     assert "Secure" not in auth.session_cookie("tok", secure=False)
     assert "Max-Age=0" in auth.clear_cookie()
+
+
+def test_mfa_ticket_roundtrip():
+    ticket = auth.create_mfa_ticket(SECRET, PASSWORD)
+    assert auth.verify_mfa_ticket(ticket, SECRET, PASSWORD)
+
+
+def test_mfa_ticket_expires_early():
+    old = time.time() - auth.MFA_TTL_S - 5
+    assert not auth.verify_mfa_ticket(auth.create_mfa_ticket(SECRET, PASSWORD, now=old), SECRET, PASSWORD)
+
+
+def test_mfa_ticket_bound_to_secret_and_password():
+    ticket = auth.create_mfa_ticket(SECRET, PASSWORD)
+    assert not auth.verify_mfa_ticket(ticket, "otro-secreto", PASSWORD)
+    assert not auth.verify_mfa_ticket(ticket, SECRET, "otra-clave")
+
+
+def test_mfa_cookie_flags():
+    c = auth.mfa_cookie("tok", secure=True)
+    assert c.startswith(f"{auth.MFA_COOKIE_NAME}=")
+    for flag in ("HttpOnly", "SameSite=Strict", "Secure", "Path=/api/admin", f"Max-Age={auth.MFA_TTL_S}"):
+        assert flag in c
+    assert "Secure" not in auth.mfa_cookie("tok", secure=False)
+    assert auth.clear_mfa_cookie().startswith(f"{auth.MFA_COOKIE_NAME}=;")
+    assert "Max-Age=0" in auth.clear_mfa_cookie()
 
 
 @pytest.mark.parametrize("origin,url,ok", [

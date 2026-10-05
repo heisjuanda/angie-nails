@@ -11,3 +11,7 @@ TURNSTILE_SECRET=1x0000000000000000000000000000000AA
 ADMIN_PASSWORD=cambia-esta-clave
 # Cadena aleatoria larga para firmar la sesión: python -c "import secrets; print(secrets.token_urlsafe(48))"
 SESSION_SECRET=cambia-este-secreto
+
+# Segundo factor del panel (TOTP). Vacío = sin MFA (comportamiento actual).
+# Genera un secreto: uv run python -c "import sys; sys.path.insert(0,'src'); import mfa; print(mfa.random_secret())"
+TOTP_SECRET=

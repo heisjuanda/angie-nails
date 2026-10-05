@@ -1,5 +1,3 @@
-"""Validación de los datos de una reserva. Lógica pura, sin Cloudflare."""
-
 import re
 from datetime import date
 

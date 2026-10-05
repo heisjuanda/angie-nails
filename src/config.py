@@ -1,14 +1,6 @@
-"""Constantes del negocio.
-
-Todo lo que aún no está definido por Angélica está marcado con X.
-Cuando tengas los datos reales, solo cambia este archivo.
-"""
-
 from datetime import timedelta, timezone
 
-# ---------------------------------------------------------------------------
 # Valores pendientes (X)
-# ---------------------------------------------------------------------------
 
 # Precio de referencia en COP. None = se muestra "$ X" en la web.
 PRECIO_X = None
@@ -26,16 +18,11 @@ COBERTURA_X: list[str] = []
 # Recargo de domicilio en COP. None = no se muestra.
 RECARGO_DOMICILIO_X = None
 
-# ---------------------------------------------------------------------------
 # Contacto
-# ---------------------------------------------------------------------------
 
-# WhatsApp de Angélica en formato internacional, solo dígitos (57 + celular).
 WHATSAPP = "573245967079"
 
-# ---------------------------------------------------------------------------
 # Servicios
-# ---------------------------------------------------------------------------
 
 CATEGORIES = [
     {"id": "unas", "name": "Uñas"},
@@ -58,9 +45,7 @@ SERVICES = [
 
 SERVICES_BY_ID = {s["id"]: s for s in SERVICES}
 
-# ---------------------------------------------------------------------------
 # Agenda
-# ---------------------------------------------------------------------------
 
 # Colombia es UTC-5 todo el año (sin horario de verano).
 TZ = timezone(timedelta(hours=-5), "America/Bogota")

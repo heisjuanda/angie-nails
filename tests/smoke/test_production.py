@@ -45,7 +45,7 @@ def test_config_uses_real_turnstile_key(client):
     r = client.get("/api/config")
     assert r.status_code == 200
     key = r.json()["turnstile_site_key"]
-    assert key.startswith("0x") and not key.startswith("1x0000")   # no es la de prueba
+    assert key.startswith("0x") and not key.startswith("1x0000")
     import config
     assert r.json()["whatsapp"] == config.WHATSAPP
 
@@ -60,7 +60,7 @@ def test_availability_responds_fast(client):
 def test_fake_turnstile_token_is_rejected(client):
     from datetime import date, timedelta
     r = client.post("/api/bookings", json=booking_payload(date.today() + timedelta(days=3), "08:00"))
-    assert r.status_code == 403   # el secreto real no acepta el token de prueba
+    assert r.status_code == 403
 
 
 def test_admin_login_session_and_logout(client):

@@ -1,5 +1,3 @@
-"""Rutas públicas: configuración, disponibilidad y creación de citas."""
-
 import json
 from datetime import date, timedelta
 
@@ -96,10 +94,8 @@ async def create_booking(env, request):
         "busy_until_min": start + service["duration"] + config.TRAVEL_BUFFER_MIN,
     }
 
-    # El chequeo anterior da el mensaje amable; esta inserción condicional es
-    # la que realmente impide la doble reserva si dos personas llegan a la vez.
     inserted = False
-    for _ in range(3):  # reintento solo ante colisión (muy improbable) del código
+    for _ in range(3):
         record["code"] = db.new_code()
         try:
             inserted = await db.insert_booking_if_free(env.DB, record)

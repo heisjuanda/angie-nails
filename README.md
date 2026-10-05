@@ -75,6 +75,7 @@ Textos de "Sobre mí" y certificaciones: `public/index.html`. Fotos: ver `public
   - Cambiar cualquiera de los dos secretos cierra todas las sesiones.
   - Las escrituras exigen `Origin` del mismo sitio.
   - Después de 5 intentos fallidos en 15 minutos, bloquea esa IP.
+  - **Segundo factor (2FA) opcional** con TOTP: ver [Segundo factor](#segundo-factor-2fa-opcional).
 
 Cambiar la contraseña de producción:
 
@@ -82,7 +83,48 @@ Cambiar la contraseña de producción:
 npx wrangler secret put ADMIN_PASSWORD
 ```
 
-API: `POST /api/admin/login|logout`, `GET /api/admin/session`, `GET /api/admin/bookings?from&to&status`,
+### Segundo factor (2FA, opcional)
+
+El login del panel puede exigir un código TOTP (RFC 6238) de tu autenticador
+(Google Authenticator, Authy, Microsoft Authenticator). **Sin `TOTP_SECRET`
+el flujo actual de un solo factor no cambia** (así está local por defecto).
+
+1. Genera el secreto y el QR (una sola vez):
+
+   ```bash
+   PYTHONPATH=src uv run python - <<'EOF'
+   import mfa
+   import qrcode
+
+   s = mfa.random_secret()
+   uri = mfa.provisioning_uri(s)
+   print("Secreto (guárdalo):", s)
+   print("URI:", uri)
+   qr = qrcode.QRCode(border=2)
+   qr.add_data(uri)
+   qr.make(fit=True)
+   qr.print_ascii(invert=True)  # quita invert=True si tu terminal es de fondo claro
+   EOF
+   ```
+
+   Escanea el QR con tu app de autenticación (o añade la cuenta a
+   mano con el secreto impreso). `qrcode` es dependencia de dev
+   (`uv sync` la instala); el Worker no la usa.
+
+2. Actívalo en producción:
+
+   ```bash
+   npx wrangler secret put TOTP_SECRET   # pega el secreto base32
+   npm run db:migrate:remote && npm run deploy
+   ```
+
+El login pasa a dos pasos: contraseña → código de 6 dígitos. La contraseña
+correcta emite un ticket de 5 minutos (`ac_admin_mfa`); solo con un código
+válido se emite la sesión. Límite: 10 códigos errados en 15 minutos por IP.
+Si pierdes el autenticador, rota el secreto con el mismo `wrangler secret put`
+(genera uno nuevo con el comando del paso 1).
+
+API: `POST /api/admin/login|mfa|logout`, `GET /api/admin/session`, `GET /api/admin/bookings?from&to&status`,
 `PATCH /api/admin/bookings/<código>` `{status}`, `GET|POST /api/admin/blocks`, `DELETE /api/admin/blocks/<id>`.
 
 ## Pruebas
@@ -119,6 +161,7 @@ src/
   validation.py    validación de datos (puro)
   messages.py      fechas en español y enlace de WhatsApp (puro)
   auth.py          sesión firmada, cookies, CSRF (puro)
+  mfa.py           segundo factor TOTP (puro)
   admin_logic.py   transiciones de estado, bloqueos, mensajes a clientas (puro)
   db.py            toda la SQL de D1
   responses.py     respuestas JSON

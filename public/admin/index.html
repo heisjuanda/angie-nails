@@ -16,7 +16,7 @@
   <script src="/js/admin.js" defer></script>
 </head>
 <body class="admin">
-  <!-- ================================================================ LOGIN -->
+  <!--  LOGIN -->
   <main class="login" data-view="login" hidden>
     <form class="login-card" data-login-form novalidate>
       <img src="/img/logo-ac-400.webp" alt="" width="96" height="96">
@@ -25,13 +25,17 @@
         <span class="field-label">Contraseña</span>
         <input name="password" type="password" autocomplete="current-password" required>
       </label>
+      <label class="field" data-mfa-field hidden>
+        <span class="field-label">Código de verificación</span>
+        <input name="code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="000000">
+      </label>
       <p class="form-message" role="alert" data-login-error hidden></p>
       <button class="btn btn-dark btn-block" type="submit">Entrar</button>
       <a class="login-back" href="/">← Volver al sitio</a>
     </form>
   </main>
 
-  <!-- ================================================================== APP -->
+  <!--  APP -->
   <div data-view="app" hidden>
     <header class="site-header">
       <div class="container header-inner">
@@ -52,7 +56,7 @@
         <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-bloqueos" id="tab-bloqueos" data-tab="bloqueos">Bloqueos</button>
       </nav>
 
-      <!-- ---------------------------------------------------------- Agenda -->
+      <!--  Agenda -->
       <section id="panel-agenda" role="tabpanel" aria-labelledby="tab-agenda" data-panel="agenda">
         <div class="stats" data-stats></div>
 
@@ -80,7 +84,7 @@
         <div class="agenda" data-agenda aria-live="polite"></div>
       </section>
 
-      <!-- -------------------------------------------------------- Bloqueos -->
+      <!--  Bloqueos -->
       <section id="panel-bloqueos" role="tabpanel" aria-labelledby="tab-bloqueos" data-panel="bloqueos" hidden>
         <form class="block-form card" data-block-form novalidate>
           <h2 class="card-title">Bloquear horario</h2>

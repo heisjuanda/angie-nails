@@ -1,5 +1,3 @@
-"""Acceso a D1. Toda la SQL del proyecto vive aquí."""
-
 import secrets
 from datetime import date
 
@@ -16,17 +14,16 @@ def _active(alias: str = "") -> str:
     )
 
 
-_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sin 0/O ni 1/I
+_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 
 def new_code() -> str:
     return "AC-" + "".join(secrets.choice(_CODE_ALPHABET) for _ in range(5))
 
 
-# ----------------------------------------------------------------- público
+#  público
 
 async def busy_intervals(db, first: date, last: date) -> dict[str, list[tuple[int, int]]]:
-    """Intervalos ocupados por fecha (citas activas + bloqueos) en el rango dado."""
     res = await db.prepare(
         f"""
         SELECT date, start_min AS s, busy_until_min AS e FROM bookings
@@ -43,12 +40,6 @@ async def busy_intervals(db, first: date, last: date) -> dict[str, list[tuple[in
 
 
 async def insert_booking_if_free(db, b: dict) -> bool:
-    """Inserta la cita solo si el intervalo sigue libre, en una única sentencia.
-
-    D1 ejecuta cada sentencia de forma atómica, así que dos clientes que
-    reservan el mismo horario a la vez no pueden quedar ambos registrados.
-    Devuelve False si el horario ya se ocupó.
-    """
     res = await db.prepare(
         f"""
         INSERT INTO bookings (
@@ -74,7 +65,7 @@ async def insert_booking_if_free(db, b: dict) -> bool:
     return int(res.meta.changes) == 1
 
 
-# ------------------------------------------------------------------- admin
+#  admin
 
 _BOOKING_COLUMNS = f"""
     code, service_id, service_name, category, price, date, start_min, end_min,
@@ -99,11 +90,6 @@ async def get_booking(db, code: str):
 
 
 async def set_booking_status(db, code: str, current: str, new: str) -> bool:
-    """Cambia el estado solo si nadie lo cambió antes (status = current).
-
-    Al confirmar, además exige que ninguna otra cita activa choque con esta:
-    una pendiente vencida pudo perder su horario frente a otra reserva.
-    """
     guard = ""
     if new == "confirmed":
         guard = f"""
@@ -167,3 +153,20 @@ async def record_failed_login(db, ip: str) -> None:
 
 async def clear_failed_logins(db, ip: str) -> None:
     await db.prepare("DELETE FROM login_attempts WHERE ip = ?1").bind(ip).run()
+
+
+async def failed_mfa(db, ip: str) -> int:
+    row = await db.prepare(
+        "SELECT COUNT(*) AS n FROM mfa_attempts "
+        f"WHERE ip = ?1 AND attempted_at > datetime('now', '-{auth.LOCKOUT_WINDOW_MIN} minutes')"
+    ).bind(ip).first()
+    return int(row["n"]) if row else 0
+
+
+async def record_failed_mfa(db, ip: str) -> None:
+    await db.prepare("INSERT INTO mfa_attempts (ip) VALUES (?1)").bind(ip).run()
+    await db.prepare("DELETE FROM mfa_attempts WHERE attempted_at < datetime('now', '-1 day')").run()
+
+
+async def clear_failed_mfa(db, ip: str) -> None:
+    await db.prepare("DELETE FROM mfa_attempts WHERE ip = ?1").bind(ip).run()

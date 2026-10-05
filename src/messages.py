@@ -1,5 +1,3 @@
-"""Textos para el cliente: fechas en español y enlace de WhatsApp. Lógica pura."""
-
 from datetime import date
 from urllib.parse import quote
 

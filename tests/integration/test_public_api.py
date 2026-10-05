@@ -1,5 +1,3 @@
-"""API pública contra el Worker real: happy paths y casos de error."""
-
 import concurrent.futures
 from datetime import date, timedelta
 from urllib.parse import unquote
@@ -22,7 +20,7 @@ def _next_weekday(weekday: int):
     return d
 
 
-# ------------------------------------------------------------------ config
+#  config
 
 def test_config_shape(api):
     r = api.get("/api/config")
@@ -30,8 +28,8 @@ def test_config_shape(api):
     data = r.json()
     assert {c["id"] for c in data["categories"]} == {"unas", "cejas", "pestanas"}
     assert len(data["services"]) == len(config.SERVICES)
-    assert all(s["price_label"] == "$ X" for s in data["services"])  # precios aún en X
-    assert 6 not in data["open_weekdays"]                              # domingo cerrado
+    assert all(s["price_label"] == "$ X" for s in data["services"])
+    assert 6 not in data["open_weekdays"]
     assert data["turnstile_site_key"]
     first, last = availability.booking_window(availability.now_local().date())
     assert data["window"] == {"first": first.isoformat(), "last": last.isoformat()}
@@ -41,7 +39,7 @@ def test_api_responses_are_not_cached(api):
     assert api.get("/api/availability", params={"service": "lifting"}).headers["cache-control"] == "no-store"
 
 
-# ------------------------------------------------------------ availability
+#  availability
 
 def test_availability_happy_path(api):
     r = api.get("/api/availability", params={"service": "semipermanente", "days": 7})
@@ -81,7 +79,7 @@ def test_availability_bad_params(api, params):
     assert api.get("/api/availability", params=params).status_code == 400
 
 
-# ---------------------------------------------------------------- booking
+#  booking
 
 def test_booking_happy_path_and_travel_buffer(api, free_day):
     r = api.post("/api/bookings", json=booking_payload(free_day, "08:00"))
@@ -132,8 +130,8 @@ def test_validation_errors_are_reported_per_field(api):
 
 
 @pytest.mark.parametrize("override", [
-    {"phone": "6023334455"},             # fijo
-    {"phone": "+1 415 555 0000"},       # extranjero
+    {"phone": "6023334455"},
+    {"phone": "+1 415 555 0000"},
     {"name": "A"},
     {"address": "x"},
     {"time": "8:00"},
@@ -160,7 +158,7 @@ def _future_open_day():
     ("pasado", -1, "08:00"),
     ("fuera de ventana", config.BOOKING_WINDOW_DAYS + 3, "08:00"),
     ("fuera de grilla", None, "08:15"),
-    ("después del cierre", None, "17:00"),   # 17:00 + 90 min > 18:00
+    ("después del cierre", None, "17:00"),
     ("antes de abrir", None, "06:00"),
 ])
 def test_unbookable_slots_are_rejected(api, label, day_offset, time):
@@ -203,28 +201,25 @@ def test_booking_data_is_stored_normalized(server, api, free_day):
     row = server.sql(f"SELECT customer_name, phone, notes, status, busy_until_min FROM bookings WHERE code = '{code}'")[0]
     assert row["customer_name"] == "Ana María"
     assert row["phone"] == "573105551234"
-    assert row["notes"] == "<script>alert(1)</script> diseño francés"  # se guarda como texto; el front lo pinta con textContent
+    assert row["notes"] == "<script>alert(1)</script> diseño francés"
     assert row["status"] == "pending"
     assert row["busy_until_min"] == 9 * 60 + config.DURACION_X + config.TRAVEL_BUFFER_MIN
 
 
-# ------------------------------------------------------------ comportamientos
+#  comportamientos
 
 def test_unconfirmed_pending_booking_expires_and_frees_slot(server, api, admin, free_day):
     first = api.post("/api/bookings", json=booking_payload(free_day, "08:00")).json()["code"]
     assert not slots_of(api, free_day)["08:00"]
 
-    # Emula que pasaron más de PENDING_TTL_HOURS sin que Angélica confirmara.
     server.sql(f"UPDATE bookings SET created_at = datetime('now', '-{config.PENDING_TTL_HOURS + 1} hours') WHERE code = '{first}'")
     assert slots_of(api, free_day)["08:00"]
 
     listed = {b["code"]: b for b in admin.get("/api/admin/bookings", params={"from": free_day.isoformat(), "to": free_day.isoformat()}).json()["bookings"]}
     assert listed[first]["expired"] is True
 
-    # Otra clienta toma el horario liberado…
     second = api.post("/api/bookings", json=booking_payload(free_day, "08:00", name="Segunda Clienta"))
     assert second.status_code == 201
-    # …y ya no se puede confirmar la vencida porque chocaría.
     r = admin.patch(f"/api/admin/bookings/{first}", json={"status": "confirmed"})
     assert r.status_code == 409
     assert admin.patch(f"/api/admin/bookings/{second.json()['code']}", json={"status": "confirmed"}).status_code == 200
@@ -238,7 +233,7 @@ def test_expired_pending_can_still_be_confirmed_if_slot_free(server, api, admin,
     assert not slots_of(api, free_day, "henna")["15:00"]  # confirmada vuelve a ocupar
 
 
-# ------------------------------------------------------------------ rutas
+#  rutas
 
 @pytest.mark.parametrize("method,path", [
     ("GET", "/api/nada"),

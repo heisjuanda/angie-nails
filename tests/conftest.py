@@ -24,6 +24,7 @@ import pytest
 
 import availability
 import config
+import mfa
 
 ROOT = Path(__file__).resolve().parents[1]
 NPX = "npx.cmd" if os.name == "nt" else "npx"
@@ -48,10 +49,6 @@ def _kill_tree(proc: subprocess.Popen) -> None:
 
 
 def run_wrangler(args: list[str], timeout: float = 180) -> str:
-    """Corre un comando de wrangler sin stdin (nunca espera respuesta) y mata todo el árbol si se cuelga.
-
-    subprocess.run(timeout=...) no basta en Windows: mata npx.cmd pero los nietos mantienen los pipes abiertos.
-    """
     with tempfile.TemporaryFile("w+", encoding="utf-8") as out:
         proc = subprocess.Popen([NPX, "wrangler", *args], cwd=ROOT, stdin=subprocess.DEVNULL,
                                 stdout=out, stderr=subprocess.STDOUT, env=WRANGLER_ENV)
@@ -77,6 +74,7 @@ class Instance:
     workdir: Path
     admin_password: str = field(default_factory=lambda: secrets.token_urlsafe(12))
     session_secret: str = field(default_factory=lambda: secrets.token_urlsafe(32))
+    totp_secret: str = ""   # vacío = panel sin segundo factor
     proc: subprocess.Popen | None = None
     log_path: Path | None = None
 
@@ -99,10 +97,11 @@ class Instance:
         self.workdir.mkdir(parents=True, exist_ok=True)
         env_file = self.workdir / ".env.test"
         env_file.write_text(
-            "TURNSTILE_SITE_KEY=1x00000000000000000000AA\n"   # la real de wrangler.jsonc solo sirve en workers.dev
+            "TURNSTILE_SITE_KEY=1x00000000000000000000AA\n"
             f"TURNSTILE_SECRET={self.turnstile_secret}\n"
             f"ADMIN_PASSWORD={self.admin_password}\n"
-            f"SESSION_SECRET={self.session_secret}\n",
+            f"SESSION_SECRET={self.session_secret}\n"
+            f"TOTP_SECRET={self.totp_secret}\n",
             encoding="utf-8",
         )
         run_wrangler(["d1", "migrations", "apply", DB_NAME, "--local", "--persist-to", str(self.persist_dir)])
@@ -144,6 +143,9 @@ class Instance:
         with self.client() as c:
             r = c.post("/api/admin/login", json={"password": self.admin_password})
             assert r.status_code == 200, r.text
+            if r.json().get("mfa_required"):
+                r = c.post("/api/admin/mfa", json={"code": mfa.current_code(self.totp_secret)})
+                assert r.status_code == 200, r.text
             yield c
 
 
@@ -162,13 +164,13 @@ def _open_days():
 def _instances():
     base = Path(tempfile.mkdtemp(prefix="ac-it-"))
     instances = [
-        Instance("server", 8791, 9331, TURNSTILE_PASS, base / "server"),
+        Instance("server", 8791, 9331, TURNSTILE_PASS, base / "server", totp_secret=mfa.random_secret()),
         Instance("strict", 8792, 9332, TURNSTILE_FAIL, base / "strict"),
     ]
     try:
-        for inst in instances:      # primero todas las migraciones…
+        for inst in instances:
             inst.prepare()
-        for inst in instances:      # …luego los servidores
+        for inst in instances:
             inst.start()
         for inst in instances:
             inst.wait_ready()
@@ -176,7 +178,7 @@ def _instances():
     finally:
         for inst in instances:
             inst.stop()
-        for _ in range(10):         # workerd tarda un momento en soltar los archivos
+        for _ in range(10):
             shutil.rmtree(base, ignore_errors=True)
             if not base.exists():
                 break
@@ -200,7 +202,6 @@ def _day_pool():
 
 @pytest.fixture
 def free_day(_day_pool):
-    """Un día hábil que ninguna otra prueba ha usado en `server`."""
     try:
         return next(_day_pool)
     except StopIteration:

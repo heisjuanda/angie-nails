@@ -1,9 +1,3 @@
-"""Worker de AC Luxury Aesthetics.
-
-Los archivos estáticos (public/) los sirve Cloudflare directamente; aquí solo
-llegan las rutas /api/* (ver "run_worker_first" en wrangler.jsonc).
-"""
-
 import re
 import traceback
 from urllib.parse import parse_qs, urlparse
@@ -65,6 +59,8 @@ class Default(WorkerEntrypoint):
                 return error(403, "Origen no permitido.")
             if path == "/api/admin/login" and method == "POST":
                 return await admin_api.login(env, request)
+            if path == "/api/admin/mfa" and method == "POST":
+                return await admin_api.verify_mfa(env, request)
             if path == "/api/admin/logout" and method == "POST":
                 return admin_api.logout(request)
             if path == "/api/admin/session" and method == "GET":

@@ -1,18 +1,21 @@
-"""Rutas del panel de administración (/api/admin/*)."""
-
 from datetime import date, timedelta
 
 import admin_logic
 import auth
 import availability
 import db
-from responses import error, json_response, read_json
+import mfa
+from responses import error, json_cookies_response, json_response, read_json
 
 MAX_RANGE_DAYS = 120
 
 
 def _secrets(env) -> tuple[str | None, str | None]:
     return getattr(env, "SESSION_SECRET", None), getattr(env, "ADMIN_PASSWORD", None)
+
+
+def _totp_secret(env) -> str | None:
+    return getattr(env, "TOTP_SECRET", None) or None
 
 
 def _is_https(request) -> bool:
@@ -38,7 +41,7 @@ def _date_range(qs: dict, default_back: int, default_forward: int) -> tuple[date
     return first, last
 
 
-# -------------------------------------------------------------------- sesión
+#  sesión
 
 async def login(env, request):
     secret, password = _secrets(env)
@@ -57,12 +60,52 @@ async def login(env, request):
         return error(401, "Contraseña incorrecta.")
 
     await db.clear_failed_logins(env.DB, ip)
+    totp = _totp_secret(env)
+    if totp:
+        # Segundo factor: la sesión solo se emite tras verificar el código.
+        ticket = auth.create_mfa_ticket(secret, password)
+        return json_response({"ok": True, "mfa_required": True},
+                             headers={"set-cookie": auth.mfa_cookie(ticket, _is_https(request))})
     token = auth.create_token(secret, password)
     return json_response({"ok": True}, headers={"set-cookie": auth.session_cookie(token, _is_https(request))})
 
 
+async def verify_mfa(env, request):
+    secret, password = _secrets(env)
+    totp = _totp_secret(env)
+    if not secret or not password or not totp:
+        return error(503, "El panel no está configurado para el segundo factor.")
+
+    ip = _client_ip(request)
+    if await db.failed_mfa(env.DB, ip) >= auth.MFA_MAX_ATTEMPTS:
+        return error(429, f"Demasiados intentos. Espera {auth.LOCKOUT_WINDOW_MIN} minutos e intenta de nuevo.")
+
+    data = await read_json(request)
+    if data is None:
+        return error(400, "Solicitud inválida.")
+
+    ticket = auth.read_cookie(request.headers.get("cookie"), auth.MFA_COOKIE_NAME)
+    if not auth.verify_mfa_ticket(ticket, secret, password):
+        return error(401, "Primero ingresa la contraseña.", step="password")
+
+    if not mfa.verify_code(totp, data.get("code")):
+        await db.record_failed_mfa(env.DB, ip)
+        return error(401, "Código incorrecto.", step="code")
+
+    await db.clear_failed_mfa(env.DB, ip)
+    secure = _is_https(request)
+    return json_cookies_response({"ok": True}, [
+        auth.clear_mfa_cookie(secure),
+        auth.session_cookie(auth.create_token(secret, password), secure),
+    ])
+
+
 def logout(request):
-    return json_response({"ok": True}, headers={"set-cookie": auth.clear_cookie(_is_https(request))})
+    secure = _is_https(request)
+    return json_cookies_response({"ok": True}, [
+        auth.clear_cookie(secure),
+        auth.clear_mfa_cookie(secure),
+    ])
 
 
 def session(authenticated: bool):
@@ -70,7 +113,7 @@ def session(authenticated: bool):
     return json_response({"authenticated": authenticated})
 
 
-# --------------------------------------------------------------------- citas
+#  citas
 
 async def list_bookings(env, qs: dict):
     try:
@@ -112,7 +155,7 @@ async def update_booking(env, request, code: str):
     return json_response({"booking": admin_logic.with_customer_link(admin_logic.serialize_booking(updated))})
 
 
-# ------------------------------------------------------------------ bloqueos
+#  bloqueos
 
 async def list_blocks(env, qs: dict):
     try:

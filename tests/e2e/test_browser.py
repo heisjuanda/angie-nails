@@ -1,16 +1,10 @@
-"""Pruebas en navegador real (Microsoft Edge vía Playwright) contra el Worker local.
-
-Emulan lo que hacen la clienta y Angélica: reservar desde el celular,
-equivocarse en el formulario, perder un horario por una reserva simultánea,
-entrar al panel, confirmar, cancelar y bloquear días.
-"""
-
 import re
 import time
 
 import pytest
 
 import messages
+import mfa
 from helpers import booking_payload
 
 pytestmark = pytest.mark.e2e
@@ -37,14 +31,13 @@ class Page:
     def __init__(self, browser, base_url, **ctx):
         self.context = browser.new_context(base_url=base_url, **ctx)
         self.page = self.context.new_page()
-        self.errors: list[str] = []          # excepciones y console.error de la app
-        self.http_errors: list[str] = []     # respuestas >= 400 (algunas son esperadas)
+        self.errors: list[str] = []
+        self.http_errors: list[str] = []
         self.page.on("pageerror", lambda e: self.errors.append(str(e)))
         self.page.on("console", self._on_console)
         self.page.on("response", lambda r: r.status >= 400 and self.http_errors.append(f"{r.status} {r.url}"))
 
     def _on_console(self, msg):
-        # El navegador anota cada respuesta 4xx como "Failed to load resource"; eso se revisa en http_errors.
         if msg.type == "error" and not msg.text.startswith("Failed to load resource"):
             self.errors.append(msg.text)
 
@@ -74,9 +67,9 @@ def open_booking(page):
 
 def pick(page, day, time, service_name):
     page.locator("label.service-option", has_text=service_name).click()
-    page.wait_for_selector(".time-btn")  # espera a que cargue la disponibilidad
+    page.wait_for_selector(".time-btn")
     label = messages.format_date_es(day)
-    for _ in range(6):   # avanza semanas hasta ver el día
+    for _ in range(6):
         btn = page.locator(f".date-btn[aria-label^='{label}']")
         if btn.count():
             btn.click()
@@ -108,14 +101,18 @@ def wait_turnstile(page):
     wait_js(page, "document.querySelector('[name=cf-turnstile-response]')?.value?.length > 0")
 
 
-def admin_login(page, password):
+def admin_login(page, password, totp_secret=None):
     page.goto("/admin/", wait_until="load")
     page.fill("input[name=password]", password)
     page.click("[data-login-form] button[type=submit]")
+    if totp_secret:
+        page.wait_for_selector("[data-mfa-field]:not([hidden])")
+        page.fill("input[name=code]", mfa.current_code(totp_secret))
+        page.click("[data-login-form] button[type=submit]")
     page.wait_for_selector("[data-view=app]:not([hidden])")
 
 
-# --------------------------------------------------------------- clienta
+#  clienta
 
 def test_customer_books_from_phone(mobile, server, free_day):
     page = mobile.page
@@ -158,7 +155,6 @@ def test_slot_taken_meanwhile_shows_message_and_refreshes(desktop, server, free_
     fill_customer(page)
     wait_turnstile(page)
 
-    # Otra persona reserva ese mismo horario mientras la clienta llena el formulario.
     import httpx
     r = httpx.post(f"{server.base_url}/api/bookings", json=booking_payload(free_day, "10:00", service="polygel"))
     assert r.status_code == 201
@@ -200,7 +196,7 @@ def test_portfolio_filter(desktop):
     assert page.locator(".portfolio-item:visible").count() == 8
 
 
-# ------------------------------------------------------------- Angélica
+#  Angélica
 
 def test_admin_wrong_password(desktop):
     page = desktop.page
@@ -213,6 +209,21 @@ def test_admin_wrong_password(desktop):
     assert page.locator("[data-view=app]").is_hidden()
 
 
+def test_admin_wrong_mfa_code(desktop, server):
+    page = desktop.page
+    page.goto("/admin/", wait_until="load")
+    page.fill("input[name=password]", server.admin_password)
+    page.click("[data-login-form] button[type=submit]")
+    page.wait_for_selector("[data-mfa-field]:not([hidden])")
+    page.fill("input[name=code]", "000000")
+    page.click("[data-login-form] button[type=submit]")
+    err = page.locator("[data-login-error]")
+    err.wait_for(state="visible")
+    assert "incorrecto" in err.text_content()
+    assert page.locator("[data-view=app]").is_hidden()
+    assert page.locator("[data-mfa-field]:not([hidden])").count() == 1
+
+
 def test_admin_confirms_and_cancels_bookings(desktop, server, free_day):
     import httpx
     codes = []
@@ -221,12 +232,11 @@ def test_admin_confirms_and_cancels_bookings(desktop, server, free_day):
         codes.append(r.json()["code"])
 
     page = desktop.page
-    admin_login(page, server.admin_password)
+    admin_login(page, server.admin_password, server.totp_secret)
     card = page.locator(f".booking-card[data-code='{codes[0]}']")
     card.wait_for()
     assert "Paola Ríos" in card.text_content() and "Pendiente" in card.text_content()
 
-    # Confirmar → aviso con enlace de WhatsApp hacia la clienta.
     card.locator("[data-action=confirmed]").click()
     toast = page.locator("[data-toast]")
     toast.wait_for(state="visible")
@@ -234,7 +244,6 @@ def test_admin_confirms_and_cancels_bookings(desktop, server, free_day):
     assert toast.locator("a").get_attribute("href").startswith("https://wa.me/573001234567")
     page.wait_for_selector(f".booking-card[data-code='{codes[0]}'] .badge-confirmed")
 
-    # Cancelar exige doble toque.
     cancel = page.locator(f".booking-card[data-code='{codes[1]}'] [data-action=cancelled]")
     cancel.click()
     assert "Seguro" in cancel.text_content()
@@ -243,7 +252,6 @@ def test_admin_confirms_and_cancels_bookings(desktop, server, free_day):
     page.wait_for_selector(f".booking-card[data-code='{codes[1]}'] .badge-cancelled")
     assert server.sql(f"SELECT status FROM bookings WHERE code = '{codes[1]}'")[0]["status"] == "cancelled"
 
-    # Filtro por estado.
     page.click("[data-status=confirmed]")
     page.wait_for_selector(f".booking-card[data-code='{codes[0]}'] .badge-confirmed")
     assert page.locator(f".booking-card[data-code='{codes[1]}']").count() == 0
@@ -255,7 +263,7 @@ def test_admin_blocks_day_and_customer_sees_it_closed(browser, server, free_day)
     customer = Page(browser, server.base_url, **DESKTOP)
     try:
         page = admin.page
-        admin_login(page, server.admin_password)
+        admin_login(page, server.admin_password, server.totp_secret)
         page.click("[data-tab=bloqueos]")
         page.fill("[data-block-form] input[name=date]", free_day.isoformat())
         page.fill("[data-block-form] input[name=reason]", "Vacaciones")
@@ -276,7 +284,6 @@ def test_admin_blocks_day_and_customer_sees_it_closed(browser, server, free_day)
         c.wait_for_selector(f".date-btn[aria-label='{label}, sin horarios']")
         assert c.locator(f".date-btn[aria-label^='{label}']").is_disabled()
 
-        # Quitar el bloqueo.
         item.locator("button").click()
         item.wait_for(state="detached")
         assert server.sql(f"SELECT COUNT(*) AS n FROM blocked_slots WHERE date = '{free_day.isoformat()}'")[0]["n"] == 0
@@ -288,12 +295,13 @@ def test_admin_blocks_day_and_customer_sees_it_closed(browser, server, free_day)
 
 def test_admin_session_survives_reload_and_logout(desktop, server):
     page = desktop.page
-    admin_login(page, server.admin_password)
+    admin_login(page, server.admin_password, server.totp_secret)
     page.reload(wait_until="load")
     page.wait_for_selector("[data-view=app]:not([hidden])")
     page.click("[data-logout]")
     page.wait_for_selector("[data-view=login]:not([hidden])")
     page.reload(wait_until="load")
     page.wait_for_selector("[data-view=login]:not([hidden])")
-    cookies = [c for c in desktop.context.cookies() if c["name"] == "ac_admin"]
-    assert cookies == [] or cookies[0]["value"] == ""
+    for name in ("ac_admin", "ac_admin_mfa"):
+        cookies = [c for c in desktop.context.cookies() if c["name"] == name]
+        assert cookies == [] or cookies[0]["value"] == ""

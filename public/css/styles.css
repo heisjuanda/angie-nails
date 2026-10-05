@@ -32,7 +32,7 @@
   --header-h: 72px;
 }
 
-/* ------------------------------------------------------------------ base */
+/*  base */
 *, *::before, *::after { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 12px); -webkit-text-size-adjust: 100%; }
@@ -70,7 +70,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 .section-cream { background: var(--cream); }
 .section-dark { background: var(--ink); color: var(--cream); }
 
-/* ------------------------------------------------------------ tipografía */
+/*  tipografía */
 .eyebrow {
   font-size: 13px;
   font-weight: 400;
@@ -95,7 +95,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 .section-dark .muted { color: rgba(243, 238, 234, .7); }
 .hint { font-size: 14px; color: var(--ink-soft); margin-top: 12px; }
 
-/* --------------------------------------------------------------- botones */
+/*  botones */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -127,7 +127,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .icon-fill { fill: currentColor; }
 
-/* ----------------------------------------------------------------- chips */
+/*  chips */
 .chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .chip {
   display: inline-flex;
@@ -148,7 +148,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 .chips-static .chip { cursor: default; text-transform: none; letter-spacing: .02em; font-size: 14px; }
 .chip-dashed { border-style: dashed; border-color: var(--line-strong); color: var(--ink-soft); }
 
-/* --------------------------------------------------------- placeholders */
+/*  placeholders */
 .ph {
   position: relative;
   display: flex;
@@ -165,7 +165,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 .tone-3 { background: var(--nude-4); }
 .tone-4 { background: var(--nude-3); }
 
-/* ---------------------------------------------------------------- header */
+/*  header */
 .site-header {
   position: sticky;
   top: 0;
@@ -191,12 +191,12 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 @media (max-width: 900px) {
   .brand-tag { display: none; }
   .nav-toggle {
-    display: inline-flex; flex-direction: column; justify-content: center; gap: 7px;
+    display: inline-flex; flex-direction: column; justify-content: center; gap: 6px;
     width: 46px; height: 46px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 50%; background: transparent; cursor: pointer;
   }
-  .nav-toggle-bar { display: block; height: 1.5px; background: var(--ink); transition: transform .25s; }
-  .nav-toggle[aria-expanded="true"] .nav-toggle-bar:first-of-type { transform: translateY(4.25px) rotate(45deg); }
-  .nav-toggle[aria-expanded="true"] .nav-toggle-bar:last-of-type { transform: translateY(-4.25px) rotate(-45deg); }
+  .nav-toggle-bar { display: block; height: 2px; background: var(--ink); transition: transform .25s; }
+  .nav-toggle[aria-expanded="true"] .nav-toggle-bar { transform: translateY(4px) rotate(45deg); }
+  .nav-toggle[aria-expanded="true"] .nav-toggle-bar + .nav-toggle-bar { transform: translateY(-4px) rotate(-45deg); }
 
   .nav {
     position: absolute; top: 100%; left: 0; right: 0;
@@ -211,7 +211,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
   .nav .btn { margin-top: 18px; }
 }
 
-/* ------------------------------------------------------------------ hero */
+/*  hero */
 .hero { padding: clamp(40px, 8vw, 110px) 0 clamp(56px, 9vw, 120px); overflow: hidden; }
 .hero-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: clamp(32px, 5vw, 72px); align-items: center; }
 .hero-copy .display { margin-bottom: 26px; }
@@ -240,12 +240,12 @@ fieldset { border: 0; padding: 0; min-width: 0; }
   .hide-mobile { display: none; }
 }
 
-/* ---------------------------------------------------------- section head */
+/*  section head */
 .section-head { margin-bottom: clamp(32px, 4vw, 52px); }
 .section-head-split { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; }
 .section-head-center { text-align: center; }
 
-/* ------------------------------------------------------------ portafolio */
+/*  portafolio */
 .portfolio-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
 .portfolio-item[hidden] { display: none; }
 .portfolio-item .ph { aspect-ratio: 4 / 5; justify-content: center; align-items: center; }
@@ -257,7 +257,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 
 @media (max-width: 900px) { .portfolio-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
 
-/* -------------------------------------------------------------- sobre mí */
+/*  sobre mí */
 .about-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: clamp(32px, 6vw, 88px); align-items: center; }
 .about-photo { aspect-ratio: 1 / 1.08; border-radius: var(--radius-lg) clamp(140px, 22vw, 260px) var(--radius-lg) var(--radius-lg); }
 .about-copy .h2 { margin-bottom: 26px; }
@@ -265,7 +265,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 .quote { font-size: clamp(24px, 2.4vw, 30px); font-style: italic; margin: 26px 0; }
 @media (max-width: 900px) { .about-grid { grid-template-columns: 1fr; } }
 
-/* ------------------------------------------------------------- servicios */
+/*  servicios */
 .services-note { max-width: 22em; font-size: 15px; color: rgba(243, 238, 234, .72); }
 .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
 .services-loading { color: rgba(243, 238, 234, .6); }
@@ -278,7 +278,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 .service-list li span:last-child { color: rgba(243, 238, 234, .75); white-space: nowrap; font-weight: 300; }
 @media (max-width: 960px) { .services-grid { grid-template-columns: 1fr; } }
 
-/* --------------------------------------------------------- cómo funciona */
+/*  cómo funciona */
 .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(28px, 4vw, 56px); text-align: center; counter-reset: none; }
 .step-num { display: block; font-size: 56px; line-height: 1; color: var(--accent); margin-bottom: 16px; }
 .step-title { font-size: 18px; font-weight: 500; margin-bottom: 10px; }
@@ -290,7 +290,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 }
 @media (max-width: 800px) { .steps { grid-template-columns: 1fr; } .coverage { border-radius: var(--radius); } }
 
-/* --------------------------------------------------------------- reserva */
+/* - reserva */
 .booking { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: clamp(28px, 4vw, 48px); align-items: start; }
 .booking-steps { display: grid; gap: 44px; }
 .step-label { font-size: 14px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; margin-bottom: 18px; padding: 0; }
@@ -367,14 +367,14 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 }
 @media (max-width: 700px) {
   .service-options, .form-grid { grid-template-columns: 1fr; }
-  .date-strip { gap: 6px; } /* booking.js muestra 5 días por página en móvil */
+  .date-strip { gap: 6px; }
   .date-btn .day { font-size: 26px; }
   .date-nav { width: 32px; }
   .time-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .summary { padding: 28px 22px; }
 }
 
-/* ---------------------------------------------------------------- footer */
+/*  footer */
 .site-footer { background: var(--sand); padding: 64px 0 40px; border-top: 1px solid var(--line); text-align: center; }
 .footer-inner { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .footer-logo { width: 72px; height: 72px; border-radius: 50%; margin-bottom: 8px; }
@@ -383,7 +383,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 .footer-social a:hover { border-bottom-color: currentColor; }
 .footer-copy { font-size: 13px; color: var(--ink-soft); }
 
-/* ------------------------------------------------------------- 404 page */
+/*  404 page */
 .not-found { min-height: 100vh; display: grid; place-items: center; text-align: center; padding: 40px 16px; background: var(--sand); }
 .not-found img { width: 120px; margin: 0 auto 24px; border-radius: 50%; }
 .not-found .h2 { margin-bottom: 14px; }

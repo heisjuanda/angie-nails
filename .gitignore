@@ -18,3 +18,4 @@ __pycache__/
 .vscode-test/
 Thumbs.db
 .DS_Store
+.kilo

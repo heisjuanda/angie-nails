@@ -1,5 +1,3 @@
-"""Utilidades compartidas por las pruebas de integración y e2e."""
-
 import httpx
 
 

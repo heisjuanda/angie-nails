@@ -1,5 +1,3 @@
-"""Panel de administración contra el Worker real: sesión, seguridad, citas y bloqueos."""
-
 import time
 from urllib.parse import unquote
 
@@ -7,6 +5,7 @@ import httpx
 import pytest
 
 import auth
+import mfa
 from helpers import booking_payload, slots_of
 
 pytestmark = pytest.mark.integration
@@ -18,16 +17,38 @@ def _book(api, day, time_="08:00", **kw) -> str:
     return r.json()["code"]
 
 
-# --------------------------------------------------------------- sesión
+#  sesión
 
-def test_login_happy_path_sets_secure_cookie(server):
+def test_login_requires_mfa_when_enabled(server):
     with server.client() as c:
         r = c.post("/api/admin/login", json={"password": server.admin_password})
         assert r.status_code == 200
+        assert r.json() == {"ok": True, "mfa_required": True}
         cookie = r.headers["set-cookie"]
-        assert cookie.startswith(f"{auth.COOKIE_NAME}=")
-        for flag in ("HttpOnly", "SameSite=Strict", "Path=/api/admin"):
+        assert cookie.startswith(f"{auth.MFA_COOKIE_NAME}=")
+        for flag in ("HttpOnly", "SameSite=Strict", "Path=/api/admin", f"Max-Age={auth.MFA_TTL_S}"):
             assert flag in cookie
+        assert f"{auth.COOKIE_NAME}=" not in cookie
+        assert c.get("/api/admin/session").json()["authenticated"] is False
+
+
+def test_mfa_happy_path_sets_session_cookie(server):
+    with server.client() as c:
+        c.post("/api/admin/login", json={"password": server.admin_password})
+        r = c.post("/api/admin/mfa", json={"code": mfa.current_code(server.totp_secret)})
+        assert r.status_code == 200
+        cookies = r.headers.get_list("set-cookie")
+        assert any(ck.startswith(f"{auth.COOKIE_NAME}=") for ck in cookies)
+        assert any(ck.startswith(f"{auth.MFA_COOKIE_NAME}=;") and "Max-Age=0" in ck for ck in cookies)
+        assert c.get("/api/admin/session").json()["authenticated"] is True
+
+
+def test_login_without_totp_secret_sets_session_directly(strict_server):
+    with strict_server.client() as c:
+        r = c.post("/api/admin/login", json={"password": strict_server.admin_password})
+        assert r.status_code == 200
+        assert r.json() == {"ok": True}
+        assert r.headers["set-cookie"].startswith(f"{auth.COOKIE_NAME}=")
         assert c.get("/api/admin/session").json()["authenticated"] is True
 
 
@@ -54,11 +75,68 @@ def test_login_requires_same_origin(server, origin):
         assert "set-cookie" not in r.headers
 
 
+#  segundo factor
+
+def test_mfa_wrong_code_rejected(server):
+    with server.client() as c:
+        c.post("/api/admin/login", json={"password": server.admin_password})
+        r = c.post("/api/admin/mfa", json={"code": "000000"})
+        assert r.status_code == 401
+        assert r.json()["step"] == "code"
+        assert c.get("/api/admin/session").json()["authenticated"] is False
+
+
+def test_mfa_requires_ticket(server):
+    with server.client() as c:
+        r = c.post("/api/admin/mfa", json={"code": mfa.current_code(server.totp_secret)})
+        assert r.status_code == 401
+        assert r.json()["step"] == "password"
+
+
+def test_mfa_ticket_expires(server):
+    ticket = auth.create_mfa_ticket(server.session_secret, server.admin_password,
+                                    now=time.time() - auth.MFA_TTL_S - 10)
+    c = server.client()
+    c.cookies.set(auth.MFA_COOKIE_NAME, ticket, domain="127.0.0.1", path="/api/admin")
+    r = c.post("/api/admin/mfa", json={"code": mfa.current_code(server.totp_secret)})
+    assert r.status_code == 401
+
+
+def test_mfa_requires_same_origin(server):
+    with httpx.Client(base_url=server.base_url, headers={"origin": "https://evil.example"}) as c:
+        assert c.post("/api/admin/mfa", json={"code": "123456"}).status_code == 403
+
+
+def test_mfa_malformed_body(server):
+    with server.client() as c:
+        c.post("/api/admin/login", json={"password": server.admin_password})
+        assert c.post("/api/admin/mfa", content="no-json",
+                      headers={"content-type": "application/json"}).status_code == 400
+
+
+def test_mfa_throttled(server):
+    server.sql("DELETE FROM mfa_attempts")
+    with server.client() as c:
+        c.post("/api/admin/login", json={"password": server.admin_password})
+        for _ in range(auth.MFA_MAX_ATTEMPTS):
+            assert c.post("/api/admin/mfa", json={"code": "000000"}).status_code == 401
+        r = c.post("/api/admin/mfa", json={"code": mfa.current_code(server.totp_secret)})
+        assert r.status_code == 429
+    server.sql("UPDATE mfa_attempts SET attempted_at = datetime('now', '-1 hour')")
+    with server.client() as c:
+        c.post("/api/admin/login", json={"password": server.admin_password})
+        assert c.post("/api/admin/mfa", json={"code": mfa.current_code(server.totp_secret)}).status_code == 200
+    assert server.sql("SELECT COUNT(*) AS n FROM mfa_attempts")[0]["n"] == 0  # éxito limpia intentos
+
+
 def test_logout_ends_session(server):
     with server.admin_client() as c:
         assert c.get("/api/admin/session").json()["authenticated"] is True
         r = c.post("/api/admin/logout")
-        assert r.status_code == 200 and "Max-Age=0" in r.headers["set-cookie"]
+        assert r.status_code == 200
+        cookies = r.headers.get_list("set-cookie")
+        assert any(ck.startswith(f"{auth.COOKIE_NAME}=;") and "Max-Age=0" in ck for ck in cookies)
+        assert any(ck.startswith(f"{auth.MFA_COOKIE_NAME}=;") and "Max-Age=0" in ck for ck in cookies)
         assert c.get("/api/admin/session").json()["authenticated"] is False
 
 
@@ -97,7 +175,6 @@ def test_forged_or_expired_cookies_rejected(server):
     for label, token in cases.items():
         with _cookie_client(server, token) as c:
             assert c.get("/api/admin/session").json()["authenticated"] is False, label
-    # Control: un token bien firmado sí entra (el mecanismo es la cookie firmada).
     with _cookie_client(server, valid) as c:
         assert c.get("/api/admin/session").json()["authenticated"] is True
 
@@ -124,17 +201,15 @@ def test_brute_force_lockout(strict_server):
     with strict_server.client() as c:
         for _ in range(auth.MAX_FAILED_LOGINS):
             assert c.post("/api/admin/login", json={"password": "intento"}).status_code == 401
-        # Aun con la clave correcta, queda bloqueado durante la ventana.
         r = c.post("/api/admin/login", json={"password": strict_server.admin_password})
         assert r.status_code == 429
-    # Emula que pasó la ventana de bloqueo.
     strict_server.sql("UPDATE login_attempts SET attempted_at = datetime('now', '-1 hour')")
     with strict_server.client() as c:
         assert c.post("/api/admin/login", json={"password": strict_server.admin_password}).status_code == 200
     assert strict_server.sql("SELECT COUNT(*) AS n FROM login_attempts")[0]["n"] == 0  # éxito limpia intentos
 
 
-# ---------------------------------------------------------------- citas
+#  citas
 
 def test_list_bookings_and_filters(api, admin, free_day):
     a = _book(api, free_day, "08:00", name="Primera Clienta")
@@ -144,7 +219,7 @@ def test_list_bookings_and_filters(api, admin, free_day):
     r = admin.get("/api/admin/bookings", params=params)
     assert r.status_code == 200
     items = r.json()["bookings"]
-    assert [x["code"] for x in items] == [a, b]            # ordenadas por hora
+    assert [x["code"] for x in items] == [a, b]
     first = items[0]
     assert first["start"] == "08:00" and first["start_label"] == "8:00 a. m."
     assert first["phone"] == "573001234567"
@@ -159,7 +234,7 @@ def test_list_bookings_and_filters(api, admin, free_day):
 @pytest.mark.parametrize("params", [
     {"status": "borrada"},
     {"from": "2026-10-10", "to": "2026-10-01"},
-    {"from": "2026-01-01", "to": "2026-12-31"},   # > 120 días
+    {"from": "2026-01-01", "to": "2026-12-31"},
     {"from": "mañana"},
 ])
 def test_list_bookings_bad_params(admin, params):
@@ -176,12 +251,10 @@ def test_booking_lifecycle(api, admin, free_day):
     msg = unquote(booking["whatsapp_url"])
     assert "Hola Laura" in msg and "Te confirmo" in msg and code in msg
 
-    # Transiciones inválidas desde "confirmada".
     for bad in ("pending", "confirmed", "nada", None):
         assert admin.patch(f"/api/admin/bookings/{code}", json={"status": bad}).status_code == 422
 
     assert admin.patch(f"/api/admin/bookings/{code}", json={"status": "completed"}).status_code == 200
-    # Estado final: ya no se mueve.
     assert admin.patch(f"/api/admin/bookings/{code}", json={"status": "cancelled"}).status_code == 422
 
 
@@ -192,7 +265,6 @@ def test_cancel_frees_the_slot(api, admin, free_day):
     assert r.status_code == 200
     assert "no puedo atender" in unquote(r.json()["booking"]["whatsapp_url"])
     assert slots_of(api, free_day, "volumen")["13:00"]
-    # Una cancelada no se puede reactivar.
     assert admin.patch(f"/api/admin/bookings/{code}", json={"status": "confirmed"}).status_code == 422
 
 
@@ -205,7 +277,7 @@ def test_update_booking_malformed_body(admin):
     assert admin.patch("/api/admin/bookings/AC-ZZZZZ", content="x", headers={"content-type": "application/json"}).status_code == 400
 
 
-# -------------------------------------------------------------- bloqueos
+#  bloqueos
 
 def test_all_day_block_closes_day_and_can_be_removed(api, admin, free_day):
     r = admin.post("/api/admin/blocks", json={"date": free_day.isoformat(), "all_day": True, "reason": "Viaje"})
@@ -226,9 +298,9 @@ def test_all_day_block_closes_day_and_can_be_removed(api, admin, free_day):
 def test_partial_block_only_affects_its_range(api, admin, free_day):
     r = admin.post("/api/admin/blocks", json={"date": free_day.isoformat(), "start": "12:00", "end": "14:00"})
     assert r.status_code == 201
-    slots = slots_of(api, free_day)                     # servicio de 90 min + 45 de traslado
-    assert slots["08:00"] and slots["09:30"]            # 09:30 + 135 = 11:45 → antes del bloqueo
-    assert not slots["10:00"]                           # 10:00 + 135 = 12:15 → invade el bloqueo
+    slots = slots_of(api, free_day)
+    assert slots["08:00"] and slots["09:30"]
+    assert not slots["10:00"]
     assert not slots["13:00"]
     assert slots["14:00"]
 
