@@ -6,19 +6,31 @@ from workers import WorkerEntrypoint
 
 import admin_api
 import auth
+import config
 import public_api
 from responses import error
 
 _BOOKING_RE = re.compile(r"^/api/admin/bookings/([^/]+)$")
 _BLOCK_RE = re.compile(r"^/api/admin/blocks/([^/]+)$")
 
+_env_applied = False
+
+
+def _apply_env(env) -> None:
+    global _env_applied
+    if _env_applied:
+        return
+    _env_applied = True
+    raw = getattr(env, "BOOKING_WINDOW_DAYS", None)
+    if not raw:
+        return
+    try:
+        config.BOOKING_WINDOW_DAYS = max(1, int(raw))
+    except ValueError:
+        print(f"BOOKING_WINDOW_DAYS inválido en el entorno: {raw!r}")
+
 
 async def _drain_body(request) -> None:
-    """Consume el cuerpo si la ruta respondió sin leerlo (p. ej. 401/403/404).
-
-    Dejarlo sin leer rompe la conexión keep-alive siguiente en wrangler dev
-    ("Network connection lost").
-    """
     if request.method in ("GET", "HEAD"):
         return
     try:
@@ -30,6 +42,7 @@ async def _drain_body(request) -> None:
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
+        _apply_env(self.env)
         try:
             response = await self.route(request)
         except Exception:

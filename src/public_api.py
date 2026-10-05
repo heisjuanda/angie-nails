@@ -19,7 +19,7 @@ def get_config(env):
     return json_response(
         {
             "categories": config.CATEGORIES,
-            "services": [{**s, "price_label": messages.format_price(s["price"])} for s in config.SERVICES],
+            "services": [{**s, "price_label": messages.format_price(s["price"])} for s in config.ALL_SERVICES],
             "open_weekdays": [d for d, spans in config.BUSINESS_HOURS.items() if spans],
             "window": {"first": first.isoformat(), "last": last.isoformat()},
             "whatsapp": config.WHATSAPP,

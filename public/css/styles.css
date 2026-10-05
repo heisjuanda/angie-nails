@@ -354,6 +354,12 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 .summary-list dd { text-align: right; font-weight: 400; }
 .turnstile { margin-top: 22px; }
 .turnstile:empty { margin-top: 0; }
+
+.ts-notice { margin-top: 18px; padding: 16px 18px; background: #f7efeb; border: 1px solid var(--nude-3); border-left: 3px solid var(--accent); border-radius: var(--radius); }
+.ts-notice-text { font-size: 15px; color: var(--ink-soft); }
+.ts-notice-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.summary .ts-notice .btn { margin-top: 0; padding: 0 20px; letter-spacing: .1em; white-space: normal; }
+.summary .ts-notice .btn[hidden] { display: none; }
 .summary .btn { margin-top: 22px; padding: 0 18px; letter-spacing: .12em; white-space: nowrap; }
 .summary-note { margin-top: 18px; font-size: 14px; color: var(--ink-soft); }
 .form-message { margin-top: 14px; font-size: 15px; color: #a4402c; }

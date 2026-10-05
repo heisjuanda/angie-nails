@@ -25,6 +25,7 @@ import pytest
 import availability
 import config
 import mfa
+from helpers import TEST_WINDOW_DAYS
 
 ROOT = Path(__file__).resolve().parents[1]
 NPX = "npx.cmd" if os.name == "nt" else "npx"
@@ -101,7 +102,8 @@ class Instance:
             f"TURNSTILE_SECRET={self.turnstile_secret}\n"
             f"ADMIN_PASSWORD={self.admin_password}\n"
             f"SESSION_SECRET={self.session_secret}\n"
-            f"TOTP_SECRET={self.totp_secret}\n",
+            f"TOTP_SECRET={self.totp_secret}\n"
+            f"BOOKING_WINDOW_DAYS={TEST_WINDOW_DAYS}\n",
             encoding="utf-8",
         )
         run_wrangler(["d1", "migrations", "apply", DB_NAME, "--local", "--persist-to", str(self.persist_dir)])
@@ -150,9 +152,8 @@ class Instance:
 
 
 def _open_days():
-    """Días hábiles libres dentro de la ventana, desde pasado mañana."""
     today = availability.now_local().date()
-    first, last = availability.booking_window(today)
+    last = today + timedelta(days=TEST_WINDOW_DAYS - 1)
     d = today + timedelta(days=2)
     while d <= last:
         if config.BUSINESS_HOURS.get(d.weekday()):

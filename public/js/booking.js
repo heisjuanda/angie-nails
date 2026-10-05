@@ -3,8 +3,20 @@
   const DOW = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
   const DOW_LONG = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
   const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-  const CATEGORY_LABEL = { unas: "Uñas", cejas: "Cejas", pestanas: "Pestañas" };
+  const CATEGORY_LABEL = { unas: "Uñas", cejas: "Cejas", pestanas: "Pestañas", combos: "Combos" };
   const mobile = window.matchMedia("(max-width: 700px)");
+
+  const TS = { OFF: "off", LOADING: "loading", READY: "ready", BROKEN: "broken" };
+  const TS_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad";
+  const TS_TIMEOUT_MS = 12000;
+  const TS_MAX_RETRIES = 2;
+  const TS_MSG = {
+    loading: "Verificando tu conexión, un momento…",
+    needToken: "Completa la verificación de seguridad para confirmar tu cita.",
+    expired: "Tu verificación expiró. Tócala para continuar.",
+    broken: "Tu navegador bloqueó la verificación de seguridad. Reactívala y vuelve a intentar.",
+    noKey: "La verificación de seguridad no está disponible ahora. Te agendo por WhatsApp.",
+  };
 
   const form = document.querySelector("[data-booking]");
   if (!form) return;
@@ -21,23 +33,30 @@
     summary: q("[data-summary]"),
     success: q("[data-success]"),
     turnstile: q("[data-turnstile]"),
+    notice: q("[data-ts-notice]"),
+    noticeText: q("[data-ts-notice-text]"),
+    retry: q("[data-ts-retry]"),
+    whatsapp: q("[data-ts-whatsapp]"),
   };
 
   const state = {
     config: null,
-    dates: [],            // todas las fechas de la ventana de reserva (YYYY-MM-DD)
+    dates: [],
     page: 0,
     serviceId: null,
     date: null,
     time: null,
-    slots: new Map(),     // serviceId → Map(fecha → slots[])
+    slots: new Map(),
     loading: false,
-    turnstileId: null,
-    turnstileToken: null,
+    tsStatus: TS.OFF,
+    tsId: null,
+    tsToken: null,
+    tsTimer: null,
+    tsRetries: 0,
     submitting: false,
   };
 
-  /* ----------------------------------------------------------- utilidades */
+  /*  utilidades */
   const parseDate = (iso) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
   const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const formatDateLong = (iso) => { const d = parseDate(iso); return `${DOW_LONG[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`; };
@@ -61,7 +80,6 @@
     return node;
   }
 
-  /* ------------------------------------------------------------ paso 1 */
   function renderServices() {
     ui.services.replaceChildren(...state.config.services.map((s) => {
       const input = h("input", { type: "radio", name: "service_id", value: s.id });
@@ -88,7 +106,6 @@
     await loadAvailability();
   }
 
-  /* ------------------------------------------------------------ paso 2 */
   async function loadAvailability({ force = false } = {}) {
     const id = state.serviceId;
     if (!id) return;
@@ -200,7 +217,6 @@
     }));
   }
 
-  /* ----------------------------------------------------------- resumen */
   function renderSummary() {
     const s = service();
     const set = (key, value) => { form.querySelector(`[data-sum="${key}"]`).textContent = value || "—"; };
@@ -210,33 +226,89 @@
     set("price", s?.price_label);
   }
 
-  /* --------------------------------------------------------- Turnstile */
   function initTurnstile() {
     const siteKey = state.config.turnstile_site_key;
-    if (!siteKey) return;
+    if (!siteKey) {
+      // Sin clave pública no hay token que obtener, y el Worker rechaza igual.
+      state.tsStatus = TS.OFF;
+      showNotice(TS_MSG.noKey);
+      return;
+    }
     window.onTurnstileLoad = () => {
-      state.turnstileId = window.turnstile.render(ui.turnstile, {
-        sitekey: siteKey,
-        language: "es",
-        theme: "light",
-        appearance: "interaction-only",
-        callback: (token) => { state.turnstileToken = token; },
-        "expired-callback": () => { state.turnstileToken = null; },
-        "error-callback": () => { state.turnstileToken = null; },
-      });
+      // El script puede cargarse y llegar sin `turnstile` (bloqueador parcial).
+      if (typeof window.turnstile?.render !== "function") return failTurnstile("neutered");
+      clearTimeout(state.tsTimer);
+      try {
+        state.tsId = window.turnstile.render(ui.turnstile, {
+          sitekey: siteKey,
+          language: "es",
+          theme: "light",
+          appearance: "interaction-only",
+          callback: (token) => { state.tsToken = token; ui.notice.hidden = true; },
+          "expired-callback": () => {
+            // El widget sigue vivo: solo hay que volver a tocarlo.
+            state.tsToken = null;
+            showNotice(TS_MSG.expired);
+            nudgeWidget();
+          },
+          "error-callback": () => { state.tsToken = null; failTurnstile("widget-error"); },
+        });
+        state.tsStatus = TS.READY;
+      } catch (err) {
+        console.error(err);
+        failTurnstile("render-error");
+      }
     };
+    loadTurnstileScript();
+  }
+
+  function loadTurnstileScript() {
+    state.tsStatus = TS.LOADING;
+    clearTimeout(state.tsTimer);
+    // Red lenta o DNS bloqueado: el onerror no siempre salta, así que hay plazo.
+    state.tsTimer = setTimeout(() => failTurnstile("timeout"), TS_TIMEOUT_MS);
     const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad";
+    script.src = `${TS_SRC}&ts=${Date.now()}`;
     script.async = true;
+    script.onerror = () => failTurnstile("blocked");
     document.head.append(script);
   }
 
-  function resetTurnstile() {
-    state.turnstileToken = null;
-    if (window.turnstile && state.turnstileId !== null) window.turnstile.reset(state.turnstileId);
+  function failTurnstile(reason) {
+    clearTimeout(state.tsTimer);
+    if (state.tsStatus === TS.BROKEN) return;
+    state.tsStatus = TS.BROKEN;
+    state.tsToken = null;
+    console.warn("Verificación de seguridad no disponible:", reason);
+    showNotice(TS_MSG.broken, { retry: state.tsRetries < TS_MAX_RETRIES });
   }
 
-  /* ----------------------------------------------------------- errores */
+  function nudgeWidget() {
+    if (state.tsId === null || typeof window.turnstile?.reset !== "function") return;
+    try { window.turnstile.reset(state.tsId); } catch (err) { console.warn(err); }
+  }
+
+  function retryTurnstile() {
+    if (state.tsRetries >= TS_MAX_RETRIES) return;
+    state.tsRetries += 1;
+    state.tsToken = null;
+    if (state.tsId !== null && typeof window.turnstile?.remove === "function") {
+      try { window.turnstile.remove(state.tsId); } catch (err) { console.warn(err); }
+    }
+    state.tsId = null;
+    ui.turnstile.replaceChildren();
+    ui.notice.hidden = true;
+    setMessage("");
+    loadTurnstileScript();
+  }
+
+  function showNotice(text, { retry = false } = {}) {
+    ui.noticeText.textContent = text;
+    ui.retry.hidden = !retry;
+    ui.whatsapp.href = whatsappSummaryUrl();
+    ui.notice.hidden = false;
+  }
+
   function showError(field, msg) {
     const node = form.querySelector(`[data-error="${field}"]`);
     if (node) { node.textContent = msg; node.hidden = false; }
@@ -269,7 +341,14 @@
     return errors;
   }
 
-  /* ------------------------------------------------------------ enviar */
+  function gateCheck() {
+    if (state.tsStatus === TS.OFF) return { blocked: true, text: TS_MSG.noKey };
+    if (state.tsStatus === TS.LOADING) return { blocked: true, text: TS_MSG.loading };
+    if (state.tsToken) return { blocked: false };
+    if (state.tsStatus === TS.READY) return { blocked: true, text: TS_MSG.needToken, nudge: true };
+    return { blocked: true, text: TS_MSG.broken, retry: state.tsRetries < TS_MAX_RETRIES };
+  }
+
   async function onSubmit(event) {
     event.preventDefault();
     if (state.submitting) return;
@@ -283,8 +362,12 @@
       first?.closest("fieldset, .field")?.scrollIntoView({ block: "center" });
       return;
     }
-    if (state.config.turnstile_site_key && !state.turnstileToken) {
-      setMessage("Estamos verificando la conexión, intenta de nuevo en unos segundos.");
+    // Toda rama bloqueada dice qué pasó y deja una salida: nunca un callejón sin salida.
+    const gate = gateCheck();
+    if (gate.blocked) {
+      setMessage(gate.text);
+      showNotice(gate.text, { retry: gate.retry });
+      if (gate.nudge) nudgeWidget();
       return;
     }
 
@@ -299,7 +382,7 @@
       neighborhood: form.elements.neighborhood.value,
       address: form.elements.address.value,
       notes: form.elements.notes.value,
-      turnstile_token: state.turnstileToken,
+      turnstile_token: state.tsToken,
     };
 
     try {
@@ -322,8 +405,26 @@
     } finally {
       state.submitting = false;
       ui.submit.disabled = false;
-      resetTurnstile();
+      state.tsToken = null;
+      if (state.tsStatus === TS.READY) nudgeWidget();
     }
+  }
+
+  function whatsappSummaryUrl() {
+    const number = state.config?.whatsapp;
+    if (!number) return "#";
+    const s = service();
+    const val = (name) => form.elements[name]?.value.trim();
+    const lines = ["Hola Angélica ✨ Quiero agendar una cita:", ""];
+    if (s) lines.push(`• Servicio: ${s.name}`);
+    if (state.date) lines.push(`• Fecha: ${formatDateLong(state.date)}`);
+    if (state.time) lines.push(`• Hora: ${formatTime(state.time)}`);
+    if (val("name")) lines.push(`• Nombre: ${val("name")}`);
+    if (val("neighborhood")) lines.push(`• Barrio: ${val("neighborhood")}`);
+    if (val("address")) lines.push(`• Dirección: ${val("address")}`);
+    if (val("notes")) lines.push(`• Notas: ${val("notes")}`);
+    lines.push("", "¿Me confirmas, por favor?");
+    return `https://wa.me/${number}?text=${encodeURIComponent(lines.join("\n"))}`;
   }
 
   function showSuccess(data) {
@@ -345,7 +446,6 @@
     document.getElementById("agendar").scrollIntoView();
   }
 
-  /* ------------------------------------------------------------- init */
   async function init() {
     try {
       state.config = await window.acConfig;
@@ -373,9 +473,13 @@
     });
     form.addEventListener("submit", onSubmit);
     form.querySelector("[data-new-booking]").addEventListener("click", resetForNewBooking);
-    ["name", "phone", "neighborhood", "address"].forEach((n) => form.elements[n].addEventListener("input", () => clearError(n)));
+    ui.retry.addEventListener("click", retryTurnstile);
+    ["name", "phone", "neighborhood", "address"].forEach((n) => form.elements[n].addEventListener("input", () => {
+      clearError(n);
+      // El enlace de salida lleva los datos que ya escribió.
+      if (!ui.notice.hidden) ui.whatsapp.href = whatsappSummaryUrl();
+    }));
 
-    // Botones "Agendar Uñas / Cejas / Pestañas" de la sección de servicios.
     document.addEventListener("click", (e) => {
       const link = e.target.closest("[data-book-category]");
       if (!link) return;

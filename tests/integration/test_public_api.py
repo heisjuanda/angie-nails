@@ -7,7 +7,7 @@ import pytest
 
 import availability
 import config
-from helpers import booking_payload, slots_of
+from helpers import TEST_WINDOW_DAYS, booking_payload, slots_of
 
 pytestmark = pytest.mark.integration
 
@@ -26,13 +26,15 @@ def test_config_shape(api):
     r = api.get("/api/config")
     assert r.status_code == 200
     data = r.json()
-    assert {c["id"] for c in data["categories"]} == {"unas", "cejas", "pestanas"}
-    assert len(data["services"]) == len(config.SERVICES)
+    assert {c["id"] for c in data["categories"]} == {"combos", "unas", "cejas", "pestanas"}
+    assert len(data["services"]) == len(config.ALL_SERVICES)
     assert all(s["price_label"] == "$ X" for s in data["services"])
     assert 6 not in data["open_weekdays"]
     assert data["turnstile_site_key"]
-    first, last = availability.booking_window(availability.now_local().date())
-    assert data["window"] == {"first": first.isoformat(), "last": last.isoformat()}
+    # La ventana la fija el entorno del Worker (TEST_WINDOW_DAYS), no el config local.
+    today = availability.now_local().date()
+    last = today + timedelta(days=TEST_WINDOW_DAYS - 1)
+    assert data["window"] == {"first": today.isoformat(), "last": last.isoformat()}
 
 
 def test_api_responses_are_not_cached(api):
@@ -66,7 +68,7 @@ def test_availability_clamps_past_and_long_ranges(api):
     r = api.get("/api/availability", params={"service": "lifting", "from": "2020-01-01", "days": 999})
     days = r.json()["days"]
     assert days[0]["date"] == today.isoformat()
-    assert len(days) == config.BOOKING_WINDOW_DAYS
+    assert len(days) == TEST_WINDOW_DAYS
 
 
 @pytest.mark.parametrize("params", [
@@ -105,6 +107,33 @@ def test_booking_happy_path_and_travel_buffer(api, free_day):
     assert api.post("/api/bookings", json=booking_payload(free_day, "10:30")).status_code == 201
     # La nueva cita de 10:30 ocupa hasta 12:45, así que 12:00 ya no se ofrece.
     assert not slots_of(api, free_day)["12:00"]
+
+
+def test_combo_books_as_one_slot_and_blocks_its_own_duration(api, server, free_day):
+    """Un combo es un servicio más: una fila, su duración y su traslado."""
+    combo = config.SERVICES_BY_ID["combo-unas-cejas"]
+    assert combo["duration"] == config.DURACION_COMBO_X
+
+    r = api.post("/api/bookings", json=booking_payload(free_day, "08:00", service="combo-unas-cejas"))
+    assert r.status_code == 201, r.text
+    assert r.json()["summary"]["service"] == "Combo Uñas + Cejas"
+    assert "Combo Uñas + Cejas" in unquote(r.json()["whatsapp_url"])
+
+    row = server.sql(
+        "SELECT service_name, duration_min, start_min, end_min, busy_until_min FROM bookings "
+        f"WHERE date = '{free_day.isoformat()}' AND start_min = 480"
+    )[0]
+    assert row["service_name"] == "Combo Uñas + Cejas"
+    assert row["duration_min"] == config.DURACION_COMBO_X
+    assert row["end_min"] == 480 + config.DURACION_COMBO_X
+    assert row["busy_until_min"] == 480 + config.DURACION_COMBO_X + config.TRAVEL_BUFFER_MIN
+
+    # 08:00 + 150 + 45 = ocupado hasta 11:15; el primer hueco libre es 11:30.
+    slots = slots_of(api, free_day, service="combo-unas-cejas")
+    assert not any(slots[t] for t in ["08:00", "09:00", "10:00", "11:00"])
+    assert slots["11:30"]
+    # Y un servicio simple tampoco se encaja en lo que queda del combo.
+    assert not slots_of(api, free_day)["11:00"]
 
 
 def test_concurrent_bookings_same_slot_only_one_wins(server, free_day):
@@ -156,7 +185,7 @@ def _future_open_day():
 
 @pytest.mark.parametrize("label,day_offset,time", [
     ("pasado", -1, "08:00"),
-    ("fuera de ventana", config.BOOKING_WINDOW_DAYS + 3, "08:00"),
+    ("fuera de ventana", TEST_WINDOW_DAYS + 3, "08:00"),
     ("fuera de grilla", None, "08:15"),
     ("después del cierre", None, "17:00"),
     ("antes de abrir", None, "06:00"),

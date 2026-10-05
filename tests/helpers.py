@@ -1,5 +1,10 @@
 import httpx
 
+# Ventana de reserva que usa el Worker durante las pruebas. Cada test que agenda necesita
+# un día libre propio y dentro de la ventana de producción (21 días) no caben. El Worker
+# la toma del entorno; aquí está la misma constante para que el pool de días coincida.
+TEST_WINDOW_DAYS = 60
+
 
 def booking_payload(day, time="08:00", service="semipermanente", **overrides) -> dict:
     return {

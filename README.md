@@ -5,7 +5,7 @@ Sitio web y agenda de citas a domicilio (uñas, cejas y pestañas) de Angélica 
 - **Frontend:** HTML + CSS + JS sin frameworks ni build, en `public/`.
 - **Backend:** Python Workers de Cloudflare (`src/`), solo para `/api/*`.
 - **Base de datos:** Cloudflare D1 (SQLite), migraciones en `migrations/`.
-- **Anti-spam:** Cloudflare Turnstile.
+- **Anti-spam:** Cloudflare Turnstile. Si el navegador lo bloquea, la web lo dice y ofrece salida.
 - **Confirmación:** enlace `wa.me` con el resumen de la cita hacia el WhatsApp de Angélica.
 - **Panel:** `/admin` para que Angélica confirme, cancele y bloquee horarios.
 
@@ -40,6 +40,7 @@ Todo lo que falta definir está en **`src/config.py`**, arriba del archivo:
 |---|---|
 | `PRECIO_X` | Precio de cada servicio (COP). `None` muestra "$ X". Se puede poner un precio distinto por servicio en `SERVICES`. |
 | `DURACION_X` | Duración de los servicios en minutos (hoy 90 para todos). |
+| `DURACION_COMBO_X` / `DURACION_TRIPLE_X` | Duración de los combos de 2 y de 3 servicios. |
 | `HORA_INICIO_X` / `HORA_FIN_X` | Horario laboral. Para horarios distintos por día o almuerzo, editar `BUSINESS_HOURS`. |
 | `COBERTURA_X` | Barrios que atiende. Vacío = cualquier barrio. |
 | `RECARGO_DOMICILIO_X` | Recargo de domicilio en COP. |
@@ -49,7 +50,35 @@ El WhatsApp de Angélica está en `WHATSAPP` (`57` + celular, solo dígitos).
 Otros ajustes de agenda en el mismo archivo: `TRAVEL_BUFFER_MIN` (traslado entre citas, 45 min), `SLOT_STEP_MIN`,
 `MIN_NOTICE_HOURS`, `BOOKING_WINDOW_DAYS`, `PENDING_TTL_HOURS`.
 
+`BOOKING_WINDOW_DAYS` es el único que se puede sobreescribir desde el entorno
+(`npx wrangler secret put BOOKING_WINDOW_DAYS`, o en `.dev.vars`), sin editar código.
+
 Textos de "Sobre mí" y certificaciones: `public/index.html`. Fotos: ver `public/img/portafolio/LEEME.md`.
+
+## Combos
+
+Una cita puede incluir varios servicios (uñas y cejas, por ejemplo). **Un combo es un servicio
+más**: una entrada en `BUNDLES` con su propio id, nombre, precio y duración. No hay lista de
+servicios dentro de la cita ni columna nueva en la base de datos — la reserva sigue siendo una
+sola fila y todo lo demás (disponibilidad, bloqueo de horarios, panel, WhatsApp) funciona sin cambios.
+
+```python
+BUNDLES = [
+    {"id": "combo-unas-cejas", "category": "combos", "name": "Combo Uñas + Cejas",
+     "price": PRECIO_X, "duration": DURACION_COMBO_X},
+]
+```
+
+- Los combos son su propia categoría (`combos`, la primera de `CATEGORIES`), así que la web los
+  muestra en su propia tarjeta y en su propia lista, sin tocar `index.html` ni el JavaScript.
+- **Solo se combinan servicios de categorías distintas**: uñas + cejas sí; semipermanente + uñas
+  acrílicas no, porque son los dos sobre las mismas uñas. Cumplir eso es elegir bien qué combos
+  ofrecer, no una regla del código.
+- La duración del combo es **menor que la suma** de sus servicios: Angélica trabaja las cejas o
+  las pestañas mientras seca las uñas. `DURACION_COMBO_X` (150) y `DURACION_TRIPLE_X` (210) son
+  valores provisionales que hay que medir.
+- Un combo ocupa más agenda que un servicio simple: 150 + 45 = 195 min, o sea **3 combos por día**
+  en vez de las 4 citas simples que caben hoy.
 
 ## Cómo funciona la agenda
 
@@ -60,6 +89,10 @@ Textos de "Sobre mí" y certificaciones: `public/index.html`. Fotos: ver `public
 3. `POST /api/bookings` valida Turnstile y los datos, y guarda la cita como **pendiente** con un código (`AC-XXXXX`).
    La inserción es una única sentencia condicional (`INSERT … SELECT … WHERE NOT EXISTS`), por lo que dos personas que
    reservan el mismo horario a la vez no pueden quedar ambas registradas.
+   El token de Turnstile es obligatorio **en el servidor**. Si el navegador no logra obtenerlo (adblocker, DNS bloqueado,
+   red), `booking.js` lo detecta —script que no carga, script que llega sin `turnstile`, `render()` que falla o 12 s de
+   silencio— y muestra un aviso con dos salidas: reintentar la verificación (hasta 2 veces) o escribir por WhatsApp con el
+   resumen ya escrito. Ningún caso deja el botón de confirmar sin respuesta.
 4. La clienta abre WhatsApp con el resumen y Angélica confirma. Una cita pendiente sin confirmar libera el horario
    pasadas `PENDING_TTL_HOURS` horas.
 
@@ -144,10 +177,16 @@ npm run test:smoke   # contra producción, sin crear datos
   - vencimiento de pendientes, simulado adelantando `created_at`;
   - CSRF, cookies falsificadas o vencidas y bloqueo por fuerza bruta.
 - **Navegador** (`tests/e2e`): Microsoft Edge vía Playwright, en móvil y escritorio, con la CSP real del sitio.
-  Emulan a la clienta (reserva, errores del formulario, horario tomado mientras llena los datos) y a Angélica (login,
-  confirmar, cancelar, filtrar, bloquear un día y verificar que la clienta lo ve cerrado).
+  Emulan a la clienta (reserva, errores del formulario, horario tomado mientras llena los datos, adblocker que bloquea
+  el script de Turnstile) y a Angélica (login, confirmar, cancelar, filtrar, bloquear un día y verificar que la clienta
+  lo ve cerrado).
 - **Humo** (`tests/smoke`): verifican el sitio publicado. Revisan cabeceras, Turnstile real (rechaza tokens falsos),
   login del panel con cookie `Secure` y la carga en navegador. No crean citas.
+
+Cada test que agenda recibe un día libre propio del fixture `free_day`. Como en la ventana de producción (21 días) no
+caben todos, los tests amplían la ventana a 60 días con `BOOKING_WINDOW_DAYS` en `.env.test`; el valor sale de
+`TEST_WINDOW_DAYS` en `tests/helpers.py` para que el pool de días y el Worker coincidan. Si agregas un test que agenda
+y el pool se agota, ese es el número que hay que subir.
 
 ## Estructura
 

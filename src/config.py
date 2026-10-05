@@ -1,12 +1,13 @@
 from datetime import timedelta, timezone
 
-# Valores pendientes (X)
-
 # Precio de referencia en COP. None = se muestra "$ X" en la web.
 PRECIO_X = None
 
 # Duración provisional de cada servicio, en minutos.
 DURACION_X = 90
+# Duración provisional de los combos, en minutos.
+DURACION_COMBO_X = 150
+DURACION_TRIPLE_X = 210
 
 # Horario laboral provisional (hora de Colombia, formato 24 h).
 HORA_INICIO_X = "08:00"
@@ -25,6 +26,7 @@ WHATSAPP = "573245967079"
 # Servicios
 
 CATEGORIES = [
+    {"id": "combos", "name": "Combos"},
     {"id": "unas", "name": "Uñas"},
     {"id": "cejas", "name": "Cejas"},
     {"id": "pestanas", "name": "Pestañas"},
@@ -43,15 +45,23 @@ SERVICES = [
     {"id": "lifting", "category": "pestanas", "name": "Lifting de pestañas", "price": PRECIO_X, "duration": DURACION_X},
 ]
 
-SERVICES_BY_ID = {s["id"]: s for s in SERVICES}
+BUNDLES = [
+    {"id": "combo-unas-cejas", "category": "combos", "name": "Combo Uñas + Cejas",
+     "price": PRECIO_X, "duration": DURACION_COMBO_X},
+    {"id": "combo-unas-pestanas", "category": "combos", "name": "Combo Uñas + Pestañas",
+     "price": PRECIO_X, "duration": DURACION_COMBO_X},
+    {"id": "combo-cejas-pestanas", "category": "combos", "name": "Combo Cejas + Pestañas",
+     "price": PRECIO_X, "duration": DURACION_COMBO_X},
+    {"id": "combo-triple", "category": "combos", "name": "Combo Triple",
+     "price": PRECIO_X, "duration": DURACION_TRIPLE_X},
+]
 
-# Agenda
+ALL_SERVICES = BUNDLES + SERVICES
+SERVICES_BY_ID = {s["id"]: s for s in ALL_SERVICES}
 
-# Colombia es UTC-5 todo el año (sin horario de verano).
 TZ = timezone(timedelta(hours=-5), "America/Bogota")
 
 # Franjas de trabajo por día de la semana (0 = lunes ... 6 = domingo).
-# Puede haber varias franjas por día, p. ej. para un descanso de almuerzo.
 BUSINESS_HOURS: dict[int, list[tuple[str, str]]] = {
     0: [(HORA_INICIO_X, HORA_FIN_X)],
     1: [(HORA_INICIO_X, HORA_FIN_X)],

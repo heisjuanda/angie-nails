@@ -1,8 +1,10 @@
 import re
 import time
+import urllib.parse
 
 import pytest
 
+import config
 import messages
 import mfa
 from helpers import booking_payload
@@ -26,8 +28,6 @@ def browser():
 
 
 class Page:
-    """Envoltura que registra errores de JavaScript y respuestas HTTP >= 400 por separado."""
-
     def __init__(self, browser, base_url, **ctx):
         self.context = browser.new_context(base_url=base_url, **ctx)
         self.page = self.context.new_page()
@@ -132,6 +132,42 @@ def test_customer_books_from_phone(mobile, server, free_day):
     row = server.sql(f"SELECT customer_name, phone, status FROM bookings WHERE code = '{code}'")[0]
     assert row == {"customer_name": "Clienta Navegador", "phone": "573112223344", "status": "pending"}
     assert mobile.errors == [] and mobile.http_errors == []
+    # Con la verificación funcionando no debe aparecer ningún aviso.
+    assert page.locator("[data-ts-notice]").is_hidden()
+
+
+def test_booking_says_so_when_turnstile_script_is_blocked(mobile, server, free_day):
+    """Un adblocker que corta el script de Cloudflare no puede dejar el botón muerto."""
+    page = mobile.page
+    page.route("https://challenges.cloudflare.com/**", lambda route: route.abort())
+    open_booking(page)
+    pick(page, free_day, "08:00", "Semipermanente")
+    fill_customer(page)
+
+    # 1. El fallo se anuncia en vez de dejar el formulario en silencio.
+    notice = page.locator("[data-ts-notice]")
+    notice.wait_for(state="visible", timeout=25_000)
+    assert "bloqueó" in page.text_content("[data-ts-notice-text]")
+    assert page.locator("[data-ts-retry]").is_visible()
+
+    # 2. Hay salida: WhatsApp con el resumen ya escrito y los datos que la clienta llenó.
+    href = page.get_attribute("[data-ts-whatsapp]", "href")
+    assert href.startswith("https://wa.me/")
+    resumen = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(href).query)["text"][0])
+    assert "Semipermanente" in resumen and "El Peñón" in resumen and "Avenida 4 Oeste" in resumen
+
+    # 3. El submit explica, y no se crea ninguna cita: el servidor sigue exigiendo Turnstile.
+    before = server.sql("SELECT COUNT(*) AS n FROM bookings")[0]["n"]
+    page.click("[data-submit]")
+    msg = page.locator("[data-form-message]")
+    msg.wait_for(state="visible")
+    assert "bloqueó" in msg.text_content()
+    assert server.sql("SELECT COUNT(*) AS n FROM bookings")[0]["n"] == before
+
+    # 4. Reintentar vuelve a intentarlo de verdad (y avisa de nuevo si sigue sin funcionar).
+    page.click("[data-ts-retry]")
+    notice.wait_for(state="visible", timeout=25_000)
+    assert page.locator("[data-ts-whatsapp]").is_visible()
 
 
 def test_form_errors_are_shown_without_calling_api(mobile):
@@ -167,6 +203,30 @@ def test_slot_taken_meanwhile_shows_message_and_refreshes(desktop, server, free_
     assert page.text_content("[data-sum=time]") == "—"
     assert desktop.errors == []
     assert [e.split()[0] for e in desktop.http_errors] == ["409"]
+
+
+def test_combo_books_end_to_end_without_frontend_changes(desktop, server, free_day):
+    page = desktop.page
+    page.goto("/", wait_until="load")
+
+    card = page.locator(".service-card", has_text="Combos")
+    card.wait_for()
+    assert card.locator(".service-list li").count() == len(config.BUNDLES)
+    # Los combos se ofrecen primero: es lo que más se vende.
+    assert "Combos" in page.locator(".service-card").first.text_content()
+
+    pick(page, free_day, "08:00", "Combo Uñas + Cejas")
+    fill_customer(page)
+    assert page.text_content("[data-sum=service]") == "Combo Uñas + Cejas"
+
+    wait_turnstile(page)
+    page.click("[data-submit]")
+    page.wait_for_selector("[data-success]:not([hidden])")
+
+    code = page.text_content("[data-success-code]")
+    row = server.sql(f"SELECT service_name, duration_min FROM bookings WHERE code = '{code}'")[0]
+    assert row == {"service_name": "Combo Uñas + Cejas", "duration_min": config.DURACION_COMBO_X}
+    assert desktop.errors == [] and desktop.http_errors == []
 
 
 def test_book_category_button_preselects_service(desktop):
