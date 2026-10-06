@@ -7,6 +7,7 @@ Sitio web y agenda de citas a domicilio (uñas, cejas y pestañas) de Angélica 
 - **Base de datos:** Cloudflare D1 (SQLite), migraciones en `migrations/`.
 - **Anti-spam:** Cloudflare Turnstile + topes por teléfono e IP. Si el navegador bloquea la verificación, la web lo dice y ofrece salida.
 - **Confirmación:** enlace `wa.me` con el resumen de la cita hacia el WhatsApp de Angélica.
+- **Aviso de cita nueva:** WhatsApp (CallMeBot) y/o email (Resend) al crear la reserva. Gratis, sin librerías: una llamada `fetch` por canal, disparada con `ctx.waitUntil` para no demorar la respuesta.
 - **Panel:** `/admin` para que Angélica confirme, cancele y bloquee horarios.
 
 **En producción:** https://ac-luxury-aesthetics.heisjuanda.workers.dev · panel en `/admin/`
@@ -22,7 +23,7 @@ Sitio web y agenda de citas a domicilio (uñas, cejas y pestañas) de Angélica 
 npm install                    # instala wrangler
 uv sync                        # instala workers-py y pytest
 cp .dev.vars.example .dev.vars # claves de prueba de Turnstile
-$ rm -rf .wrangler/state       # elimina la D1 local y sus datos
+rm -rf .wrangler/state       # elimina la D1 local y sus datos
 npm run db:migrate:local       # crea las tablas en la D1 local
 npm run dev                    # http://127.0.0.1:8787  (panel: /admin/, clave en .dev.vars)
 ```
@@ -164,6 +165,91 @@ BUNDLES = [
 5. La clienta abre WhatsApp con el resumen y Angélica confirma. Una cita pendiente sigue reservando el horario hasta
    que su cita empiece, o hasta que Angélica la confirme o cancele.
 
+## Aviso de cita nueva (WhatsApp / email)
+
+Sin esto, Angélica solo se entera de una reserva si tiene el panel abierto (el
+navegador hace *poll* cada 60 s) y la cita pendiente se libera a las 12 h. El
+aviso cierra ese hueco: al guardar la reserva, el Worker le manda el resumen
+(código, servicio, fecha, hora, clienta, barrio, dirección y notas) por
+WhatsApp y/o email. Es **best-effort**: si un canal falla, la reserva igual
+queda guardada y la clienta recibe su código.
+
+Dos canales, ambos gratuitos y ambos con una sola llamada HTTP (`workers.fetch`,
+cero librerías nuevas). Cada uno se activa solo si tiene sus variables:
+
+| Canal | Servicio | Gratis | Variables |
+|---|---|---|---|
+| WhatsApp | [CallMeBot](https://www.callmebot.com) | ilimitado para uso personal | `CALLMEBOT_APIKEY` (obligatoria), `NOTIFY_PHONE` (opcional; por defecto `config.WHATSAPP`) |
+| Email | [Resend](https://resend.com) | 3.000 correos/mes (100/día) | `RESEND_API_KEY` + `NOTIFY_EMAIL`, `RESEND_FROM` (opcional) |
+
+**WhatsApp (CallMeBot):**
+
+1. En el celular de Angélica, guarda el número del bot **+34 644 99 26 98** en contactos.
+2. Envíale el mensaje `I allow callmebot to send me messages`.
+3. El bot responde con una **apikey**. Actívala en el Worker:
+
+```bash
+npx wrangler secret put CALLMEBOT_APIKEY
+```
+
+El aviso llega al número que activó la apikey (por defecto el de
+`config.WHATSAPP`; si el celular de Angélica es otro, ponlo en `NOTIFY_PHONE`).
+
+**Email (Resend):** crea una cuenta y una clave en resend.com, y verifica el
+dominio (tres registros DNS en el dashboard de Cloudflare, gratis) para enviar
+desde tu propio dominio. Sin verificar, solo funciona con direcciones
+`@resend.dev` (sirve para probar):
+
+```bash
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put NOTIFY_EMAIL     # p. ej. angie@tu-dominio.com
+# RESEND_FROM por defecto es "AC Luxury Aesthetics <noreply@resend.dev>";
+# con el dominio verificado, cámbialo a tu dirección real.
+```
+
+**Notas:**
+
+- CallMeBot es un servicio de terceros cuya API gratuita es **para uso
+  personal** (un aviso al celular de la dueña entra en ese caso). Si quieres la
+  vía oficial, la **WhatsApp Cloud API** de Meta tiene 1.000 conversaciones
+  gratis al mes, pero exige verificación de empresa y plantillas de mensaje:
+  basta reescribir `send_whatsapp` en `src/notify.py`, el resto no cambia.
+- El aviso sale con `waitUntil`: no demora la respuesta a la clienta y el
+  runtime lo completa aunque ya haya respondido (tope de 30 s).
+- Local: las variables van comentadas en `.dev.vars`. Sin ellas, el aviso es
+  un no-op silencioso (así las pruebas no mandan mensajes reales).
+
+### Probar en local
+
+1. **Descomenta** las variables en `.dev.vars` (las líneas que empiezan con
+   `#` son comentarios: el Worker no las ve).
+2. **Reinicia** `npm run dev`: el servidor lee `.dev.vars` al arrancar, no
+   en caliente.
+3. Prueba cada canal de forma aislada (sin agendar una cita):
+
+   ```bash
+   uv run python scripts/probe_notify.py
+   ```
+
+   Muestra qué canales están activos, la petición y la **respuesta cruda** de
+   cada API. Si algo falla, el mensaje de la API dice por qué (apikey
+   inválida, número no activado, dominio sin verificar…).
+
+4. Prueba de punta a punta: agenda una cita en http://127.0.0.1:8787 (la
+   clave de prueba de Turnstile siempre pasa) y revisa el correo/WhatsApp.
+   Los fallos del aviso se imprimen en la consola de `wrangler dev` con
+   prefijo `notify:`.
+
+**Trampas comunes:**
+
+- **Resend gratis sin dominio verificado** solo puede enviar al correo de tu
+  propia cuenta de Resend (para cualquier otro destinatario contesta 403).
+  Para avisar a otro correo: verifica tu dominio en resend.com (tres
+  registros DNS en el dashboard de Cloudflare) y ponlo en `RESEND_FROM`.
+- **CallMeBot** ata la apikey al número que la activó: si ese número no es
+  el de `config.WHATSAPP`, ponlo en `NOTIFY_PHONE`.
+- Si editaste `.dev.vars` con el servidor corriendo, reinícialo.
+
 ## Panel de administración (`/admin/`)
 
 - **Agenda:** citas por día con filtros por periodo y estado. Acciones: confirmar, cancelar (pide doble toque) y
@@ -272,6 +358,7 @@ src/
   availability.py  cálculo de horarios (puro)
   validation.py    validación de datos (puro)
   messages.py      fechas en español y enlace de WhatsApp (puro)
+  notify.py        aviso de cita nueva: WhatsApp (CallMeBot) y email (Resend)
   auth.py          sesión firmada, cookies, CSRF (puro)
   mfa.py           segundo factor TOTP (puro)
   admin_logic.py   transiciones de estado, bloqueos, mensajes a clientas (puro)
@@ -290,7 +377,7 @@ assets/            logo original (no se publica)
 | Worker | `ac-luxury-aesthetics` → https://ac-luxury-aesthetics.heisjuanda.workers.dev |
 | D1 | `ac-luxury-db` (`04d25f7f-7dea-46af-b0ec-4512392b8042`) |
 | Turnstile | widget "AC Luxury Aesthetics" (modo *managed*, dominio del workers.dev) |
-| Secretos | `TURNSTILE_SECRET`, `ADMIN_PASSWORD`, `SESSION_SECRET` (copia local en `.secrets.production.local`, fuera de git) |
+| Secretos | `TURNSTILE_SECRET`, `ADMIN_PASSWORD`, `SESSION_SECRET`, y opcionalmente `CALLMEBOT_APIKEY` / `RESEND_API_KEY` / `NOTIFY_EMAIL` para el aviso de citas (copia local en `.secrets.production.local`, fuera de git) |
 
 Publicar cambios:
 

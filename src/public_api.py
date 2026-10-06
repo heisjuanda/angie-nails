@@ -7,6 +7,7 @@ import availability
 import config
 import db
 import messages
+import notify
 from responses import client_ip, error, json_response, read_json
 from validation import ValidationError, validate_booking
 
@@ -169,6 +170,7 @@ async def create_booking(env, request):
         return error(409, "Ese horario acaba de ser reservado. Elige otro, por favor.")
 
     await db.record_booking_attempt(env.DB, client_ip(request), b["phone"])
+    notify.notify_booking_later(env, record)
     return json_response(created_payload(record, service, b), status=201)
 
 

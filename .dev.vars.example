@@ -15,3 +15,18 @@ SESSION_SECRET=cambia-este-secreto
 # Segundo factor del panel (TOTP). Vacío = sin MFA (comportamiento actual).
 # Genera un secreto: uv run python -c "import sys; sys.path.insert(0,'src'); import mfa; print(mfa.random_secret())"
 TOTP_SECRET=
+
+# Aviso a Angélica cuando entra una cita (ver src/notify.py). Vacío = sin aviso.
+# WhatsApp vía CallMeBot (gratis, uso personal): activa en callmebot.com y pega
+# aquí la apikey que te manda el bot. El destino es config.WHATSAPP salvo que
+# pongas NOTIFY_PHONE. En producción: npx wrangler secret put CALLMEBOT_APIKEY
+# CALLMEBOT_APIKEY=
+# NOTIFY_PHONE=
+
+# Email vía Resend (gratis, 3.000 correos/mes): crea la clave en resend.com.
+# NOTIFY_EMAIL es quien recibe el aviso; RESEND_FROM se puede dejar tal cual
+# mientras no verifiques tu dominio (luego cámbialo a tu dirección verificada).
+# En producción: npx wrangler secret put RESEND_API_KEY
+# RESEND_API_KEY=
+# NOTIFY_EMAIL=
+# RESEND_FROM=
