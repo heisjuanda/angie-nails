@@ -53,6 +53,9 @@
 .day-title { font-family: var(--font-display); font-weight: 400; font-size: 30px; margin-bottom: 12px; }
 .day-list { display: grid; gap: 12px; }
 
+.pagination { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 24px; }
+.pagination-info { font-size: 13px; color: var(--ink-soft); }
+
 .booking-card {
   display: grid; grid-template-columns: 118px minmax(0, 1fr) auto; gap: 18px; align-items: start;
   padding: 18px 20px; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius);

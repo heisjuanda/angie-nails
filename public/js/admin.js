@@ -13,7 +13,7 @@
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-  const state = { status: "", range: "upcoming", bookings: [], refreshTimer: null };
+  const state = { status: "", range: "upcoming", page: 1, total: 0, perPage: 0, bookings: [], refreshTimer: null };
 
   function h(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
@@ -102,18 +102,41 @@
 
   async function loadAgenda({ quiet = false } = {}) {
     const [from, to] = rangeDates();
-    const params = new URLSearchParams({ from: iso(from), to: iso(to) });
+    const params = new URLSearchParams({ from: iso(from), to: iso(to), page: String(state.page) });
     if (state.status) params.set("status", state.status);
     const agenda = $("[data-agenda]");
     if (!quiet) agenda.replaceChildren(h("p", { class: "muted", text: "Cargando agenda…" }));
     try {
       const data = await api(`/bookings?${params}`);
       state.bookings = data.bookings;
+      state.total = data.total;
+      state.perPage = data.per_page;
       renderAgenda();
+      renderPagination();
       renderStats(data.stats);
     } catch (err) {
       if (err.status !== 401) agenda.replaceChildren(h("p", { class: "agenda-empty", text: err.message }));
     }
+  }
+
+  function renderPagination() {
+    const node = $("[data-pagination]");
+    const pages = Math.ceil(state.total / state.perPage);
+    if (!state.perPage || !Number.isFinite(pages) || pages < 2) {
+      node.hidden = true;
+      node.replaceChildren();
+      return;
+    }
+    const prev = h("button", { type: "button", class: "btn btn-outline btn-sm", "data-page": state.page - 1, text: "← Anterior" });
+    const next = h("button", { type: "button", class: "btn btn-outline btn-sm", "data-page": state.page + 1, text: "Siguiente →" });
+    prev.disabled = state.page <= 1;
+    next.disabled = state.page >= pages;
+    node.replaceChildren(
+      prev,
+      h("span", { class: "pagination-info", text: `Página ${state.page} de ${pages}` }),
+      next,
+    );
+    node.hidden = false;
   }
 
   function renderStats(summary) {
@@ -329,9 +352,10 @@
       showLogin();
     });
 
-    $("[data-range]").addEventListener("change", (e) => { state.range = e.target.value; loadAgenda(); });
+    $("[data-range]").addEventListener("change", (e) => { state.range = e.target.value; state.page = 1; loadAgenda(); });
     $$("[data-status-filters] [data-status]").forEach((chip) => chip.addEventListener("click", () => {
       state.status = chip.dataset.status;
+      state.page = 1;
       $$("[data-status-filters] [data-status]").forEach((c) => {
         c.classList.toggle("is-active", c === chip);
         c.setAttribute("aria-pressed", String(c === chip));
@@ -339,6 +363,12 @@
       loadAgenda();
     }));
     $("[data-refresh]").addEventListener("click", () => loadAgenda());
+    $("[data-pagination]").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-page]");
+      if (!btn || btn.disabled) return;
+      state.page = Number(btn.dataset.page);
+      loadAgenda();
+    });
 
     const blockForm = $("[data-block-form]");
     blockForm.elements.date.value = iso(new Date());

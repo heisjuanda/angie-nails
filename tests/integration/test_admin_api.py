@@ -19,6 +19,20 @@ def _book(api, day, time_="08:00", **kw) -> str:
     return r.json()["code"]
 
 
+def _seed_bookings(server, day, n: int, prefix: str = "AC-PG") -> None:
+    values = ", ".join(
+        f"('{prefix}{i:03d}', 'semipermanente', 'Semipermanente', 'unas', 1000, 90, "
+        f"'{day.isoformat()}', {480 + i * 30}, {570 + i * 30}, {615 + i * 30}, "
+        f"'Clienta {i}', '573000000{i}', 'Barrio', 'Dir', '', 'pending')"
+        for i in range(n)
+    )
+    server.sql(
+        "INSERT INTO bookings (code, service_id, service_name, category, price, duration_min, "
+        "date, start_min, end_min, busy_until_min, customer_name, phone, neighborhood, address, "
+        "notes, status) VALUES " + values
+    )
+
+
 #  sesión
 
 def test_login_requires_mfa_when_enabled(server):
@@ -316,6 +330,47 @@ def test_list_bookings_and_filters(api, admin, free_day):
     {"from": "mañana"},
 ])
 def test_list_bookings_bad_params(admin, params):
+    assert admin.get("/api/admin/bookings", params=params).status_code == 400
+
+
+def test_list_bookings_pagination(server, admin, free_day):
+    _seed_bookings(server, free_day, 5)
+    params = {"from": free_day.isoformat(), "to": free_day.isoformat()}
+
+    whole = admin.get("/api/admin/bookings", params=params).json()
+    assert whole["total"] == 5
+    assert whole["page"] == 1 and whole["per_page"] == 100
+    assert [b["code"] for b in whole["bookings"]] == [f"AC-PG{i:03d}" for i in range(5)]
+
+    p1 = admin.get("/api/admin/bookings", params={**params, "per_page": 2, "page": 1}).json()
+    assert (p1["total"], p1["page"], p1["per_page"]) == (5, 1, 2)
+    assert [b["code"] for b in p1["bookings"]] == ["AC-PG000", "AC-PG001"]
+
+    p2 = admin.get("/api/admin/bookings", params={**params, "per_page": 2, "page": 2}).json()
+    assert [b["code"] for b in p2["bookings"]] == ["AC-PG002", "AC-PG003"]
+
+    p3 = admin.get("/api/admin/bookings", params={**params, "per_page": 2, "page": 3}).json()
+    assert [b["code"] for b in p3["bookings"]] == ["AC-PG004"]
+
+    p4 = admin.get("/api/admin/bookings", params={**params, "per_page": 2, "page": 4}).json()
+    assert p4["bookings"] == [] and p4["total"] == 5
+
+    clamped = admin.get("/api/admin/bookings", params={**params, "per_page": 5000}).json()
+    assert clamped["per_page"] == 500
+
+    server.sql("UPDATE bookings SET status = 'confirmed' WHERE code = 'AC-PG000'")
+    filtered = admin.get(
+        "/api/admin/bookings", params={**params, "status": "pending", "per_page": 2, "page": 1}
+    ).json()
+    assert filtered["total"] == 4
+    assert [b["code"] for b in filtered["bookings"]] == ["AC-PG001", "AC-PG002"]
+
+
+@pytest.mark.parametrize("params", [
+    {"from": "2026-01-01", "to": "2026-01-02", "page": "x"},
+    {"from": "2026-01-01", "to": "2026-01-02", "per_page": "abc"},
+])
+def test_list_bookings_bad_pagination(admin, params):
     assert admin.get("/api/admin/bookings", params=params).status_code == 400
 
 

@@ -8,6 +8,8 @@ import mfa
 from responses import client_ip, error, json_cookies_response, json_response, read_json
 
 MAX_RANGE_DAYS = 120
+PAGE_SIZE = 100
+MAX_PAGE_SIZE = 500
 
 
 def _secrets(env) -> tuple[str | None, str | None]:
@@ -38,6 +40,15 @@ def _date_range(qs: dict, default_back: int, default_forward: int) -> tuple[date
     if last < first or (last - first).days > MAX_RANGE_DAYS:
         raise ValueError("rango")
     return first, last
+
+
+def _pagination(qs: dict) -> tuple[int, int]:
+    try:
+        page = int((qs.get("page") or ["1"])[0])
+        per_page = int((qs.get("per_page") or [str(PAGE_SIZE)])[0])
+    except (TypeError, ValueError):
+        raise ValueError("paginación")
+    return max(1, page), max(1, min(per_page, MAX_PAGE_SIZE))
 
 
 #  sesión
@@ -126,15 +137,24 @@ async def list_bookings(env, qs: dict):
         first, last = _date_range(qs, default_back=1, default_forward=30)
     except ValueError:
         return error(400, "Rango de fechas inválido.")
+    try:
+        page, per_page = _pagination(qs)
+    except ValueError:
+        return error(400, "Paginación inválida.")
     status = (qs.get("status") or [None])[0]
     if status and status not in admin_logic.TRANSITIONS:
         return error(400, "Estado inválido.")
-    rows = await db.list_bookings(env.DB, first, last, status)
+    rows = await db.list_bookings(env.DB, first, last, status,
+                                  limit=per_page, offset=(page - 1) * per_page)
+    total = await db.count_bookings(env.DB, first, last, status)
     stats = await db.booking_stats(env.DB, availability.now_local().date())
     return json_response({
         "from": first.isoformat(),
         "to": last.isoformat(),
         "stats": stats,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
         "bookings": [admin_logic.with_customer_link(admin_logic.serialize_booking(r)) for r in rows],
     })
 

@@ -8,7 +8,7 @@ Sitio web y agenda de citas a domicilio (uñas, cejas y pestañas) de Angélica 
 - **Anti-spam:** Cloudflare Turnstile + topes por teléfono e IP. Si el navegador bloquea la verificación, la web lo dice y ofrece salida.
 - **Confirmación:** enlace `wa.me` con el resumen de la cita hacia el WhatsApp de Angélica.
 - **Aviso de cita nueva:** WhatsApp (CallMeBot) y/o email (Resend) al crear la reserva. Gratis, sin librerías: una llamada `fetch` por canal, disparada con `ctx.waitUntil` para no demorar la respuesta.
-- **Panel:** `/admin` para que Angélica confirme, cancele y bloquee horarios.
+- **Panel:** `/admin` para que Angélica confirme, cancele y bloquee horarios. La lista de citas va paginada (`page`/`per_page`, 100 por página, tope 500) y responde con `total`, así ningún rango se trunca en silencio.
 
 **En producción:** https://ac-luxury-aesthetics.heisjuanda.workers.dev · panel en `/admin/`
 

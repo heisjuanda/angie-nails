@@ -86,15 +86,29 @@ _BOOKING_COLUMNS = f"""
 """
 
 
-async def list_bookings(db, first: date, last: date, status: str | None = None) -> list[dict]:
+async def list_bookings(
+    db, first: date, last: date, status: str | None = None,
+    limit: int = 500, offset: int = 0,
+) -> list[dict]:
     sql = f"SELECT {_BOOKING_COLUMNS} FROM bookings WHERE date BETWEEN ?1 AND ?2"
-    params = [first.isoformat(), last.isoformat()]
+    params: list = [first.isoformat(), last.isoformat()]
     if status:
         sql += " AND status = ?3"
         params.append(status)
-    sql += " ORDER BY date, start_min LIMIT 500"
+    sql += f" ORDER BY date, start_min LIMIT ?{len(params) + 1} OFFSET ?{len(params) + 2}"
+    params.extend([limit, offset])
     res = await db.prepare(sql).bind(*params).all()
     return list(res.results)
+
+
+async def count_bookings(db, first: date, last: date, status: str | None = None) -> int:
+    sql = "SELECT COUNT(*) AS n FROM bookings WHERE date BETWEEN ?1 AND ?2"
+    params: list = [first.isoformat(), last.isoformat()]
+    if status:
+        sql += " AND status = ?3"
+        params.append(status)
+    row = await db.prepare(sql).bind(*params).first()
+    return int(row["n"]) if row else 0
 
 
 async def get_booking(db, code: str):
