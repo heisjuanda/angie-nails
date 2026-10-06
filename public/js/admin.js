@@ -111,22 +111,35 @@
       state.bookings = data.bookings;
       state.total = data.total;
       state.perPage = data.per_page;
+      const pages = Math.max(1, Math.ceil(state.total / state.perPage));
+      if (state.total > 0 && state.page > pages) {
+        state.page = pages;
+        return loadAgenda({ quiet });
+      }
       renderAgenda();
       renderPagination();
       renderStats(data.stats);
     } catch (err) {
-      if (err.status !== 401) agenda.replaceChildren(h("p", { class: "agenda-empty", text: err.message }));
+      if (err.status !== 401) {
+        agenda.replaceChildren(h("p", { class: "agenda-empty", text: err.message }));
+        hidePagination();
+      }
     }
   }
 
-  function renderPagination() {
+  function hidePagination() {
     const node = $("[data-pagination]");
+    node.hidden = true;
+    node.replaceChildren();
+  }
+
+  function renderPagination() {
     const pages = Math.ceil(state.total / state.perPage);
     if (!state.perPage || !Number.isFinite(pages) || pages < 2) {
-      node.hidden = true;
-      node.replaceChildren();
+      hidePagination();
       return;
     }
+    const node = $("[data-pagination]");
     const prev = h("button", { type: "button", class: "btn btn-outline btn-sm", "data-page": state.page - 1, text: "← Anterior" });
     const next = h("button", { type: "button", class: "btn btn-outline btn-sm", "data-page": state.page + 1, text: "Siguiente →" });
     prev.disabled = state.page <= 1;
