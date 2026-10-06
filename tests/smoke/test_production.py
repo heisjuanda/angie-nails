@@ -2,7 +2,6 @@
 
 Correr con:  npm run test:smoke   (o: uv run pytest -m smoke)
 URL por defecto: https://ac-luxury-aesthetics.heisjuanda.workers.dev  (cambiar con PROD_URL)
-La contraseña del panel se lee de .secrets.production.local.
 """
 
 import os

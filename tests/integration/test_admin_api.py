@@ -339,7 +339,8 @@ def test_list_bookings_pagination(server, admin, free_day):
 
     whole = admin.get("/api/admin/bookings", params=params).json()
     assert whole["total"] == 5
-    assert whole["page"] == 1 and whole["per_page"] == 100
+    # 25 = PAGE_SIZE de admin_api
+    assert whole["page"] == 1 and whole["per_page"] == 25
     assert [b["code"] for b in whole["bookings"]] == [f"AC-PG{i:03d}" for i in range(5)]
 
     p1 = admin.get("/api/admin/bookings", params={**params, "per_page": 2, "page": 1}).json()

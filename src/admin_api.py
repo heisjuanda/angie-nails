@@ -8,7 +8,7 @@ import mfa
 from responses import client_ip, error, json_cookies_response, json_response, read_json
 
 MAX_RANGE_DAYS = 120
-PAGE_SIZE = 100
+PAGE_SIZE = 25
 MAX_PAGE_SIZE = 500
 
 
