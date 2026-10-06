@@ -1,5 +1,6 @@
 import asyncio
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
 import config
@@ -40,7 +41,16 @@ class RecordingHttp:
 
 
 def _run(coro):
-    return asyncio.run(coro)
+    """Corre la corrutina en un hilo con su propio loop.
+
+    asyncio.run() y run_until_complete() se niegan a arrancar en el
+    hilo principal si hay un loop "corriendo", y la API sync de
+    Playwright (el e2e corre antes) deja el suyo marcado sin limpiar
+    (playwright/_impl/_sync_base.py). El marcador es thread-local:
+    en un hilo nuevo está vacío, así que asyncio.run() funciona sin
+    tocar estado global de Playwright."""
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
 
 
 def _record() -> dict:

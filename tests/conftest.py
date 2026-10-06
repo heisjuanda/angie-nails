@@ -13,6 +13,7 @@ import json
 import os
 import secrets
 import shutil
+import signal
 import subprocess
 import tempfile
 import time
@@ -43,7 +44,13 @@ def _kill_tree(proc: subprocess.Popen) -> None:
         if os.name == "nt":
             subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True)
         else:
-            proc.kill()
+            # npx lanza sh → node → workerd. Matar solo a npx deja huérfanos que
+            # siguen ocupando los puertos 8791/8792 con la D1 ya borrada debajo,
+            # y la corrida siguiente termina hablándoles (500s sin sentido).
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                proc.kill()
     try:
         proc.wait(timeout=30)
     except subprocess.TimeoutExpired:
@@ -117,7 +124,8 @@ class Instance:
             [NPX, "wrangler", "dev", "--port", str(self.port), "--ip", "127.0.0.1",
              "--inspector-port", str(self.inspector_port), "--persist-to", str(self.persist_dir),
              "--env-file", str(env_file), "--show-interactive-dev-session=false", "--log-level", "log"],
-            cwd=ROOT, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, env=WRANGLER_ENV,
+            cwd=ROOT, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+            env=WRANGLER_ENV, start_new_session=True,
         )
 
     def wait_ready(self, timeout: float = 240) -> None:

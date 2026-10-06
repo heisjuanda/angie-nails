@@ -1,3 +1,4 @@
+import asyncio
 import re
 import time
 import urllib.parse
@@ -223,7 +224,14 @@ def test_slot_taken_meanwhile_shows_message_and_refreshes(desktop, server, free_
     wait_turnstile(page)
 
     import httpx
-    r = httpx.post(f"{server.base_url}/api/bookings", json=booking_payload(free_day, "10:00", service="polygel"))
+    # Timeout explícito: el default de httpx (5 s) es corto bajo
+    # carga (navegador + wrangler dev + D1) y el POST se va a
+    # ReadTimeout de vez en cuando.
+    r = httpx.post(
+        f"{server.base_url}/api/bookings",
+        json=booking_payload(free_day, "10:00", service="polygel"),
+        timeout=30,
+    )
     assert r.status_code == 201
 
     page.click("[data-submit]")

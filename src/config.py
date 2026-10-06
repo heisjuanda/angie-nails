@@ -87,6 +87,11 @@ BOOKING_WINDOW_DAYS = 21
 # Una cita "pendiente" que Angélica no confirma se libera después de estas horas.
 PENDING_TTL_HOURS = 12
 
+# Citas y bloqueos con fecha de la cita más vieja que estos días se borran de
+# forma permanente al crear una reserva (privacidad: ya no sirven en el panel,
+# que consulta hasta 120 días). Borrado duro e irreversible.
+RETENTION_DAYS = 120
+
 # Una cita activa por teléfono y fecha. Un día tiene 4 huecos, así que con este tope
 # llenarlo exige cuatro teléfonos distintos. También evita el absurdo de cuatro citas el
 # mismo día; los combos son la salida para quien quiere varios servicios en una visita.

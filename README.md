@@ -116,6 +116,18 @@ daño que importa.
 Los tres devuelven **429 con enlace a WhatsApp**, porque un tope tiene que sonar a ayuda: con
 CGNAT un falso positivo por IP es fácil y nunca debe dejar el error sin salida.
 
+## Retención de datos
+
+Las citas y los bloqueos cuya **fecha de la cita** tiene más de `RETENTION_DAYS` (120) días se
+borran de forma permanente al crear una reserva nueva (`db.purge_old_bookings` /
+`db.purge_old_blocks`, disparadas desde `public_api.create_booking`). No hace falta filtrar por
+estado: toda cita con fecha pasada es final (una pendiente vencida ya no se puede confirmar).
+
+120 días coincide con `MAX_RANGE_DAYS`, o sea Angélica puede ver en el panel todo lo que la tabla
+aún guarda. Es **borrado duro e irreversible**: si algún día se quieren métricas históricas, hay
+que exportar antes. La purga es oportunista (corre al reservar), no un cron: workers-py 1.17.5
+no tiene handler `scheduled`, y con reservas diarias la purga corre a diario en la práctica.
+
 ## Combos
 
 Una cita puede incluir varios servicios (uñas y cejas, por ejemplo). **Un combo es un servicio
@@ -327,10 +339,11 @@ npm run test:smoke   # contra producción, sin crear datos
 - **Unitarias** (`tests/unit`): horarios, traslado, validación, fechas, sesión HMAC, transiciones de estado y
   bloqueos, invariantes de la carta de servicios, y qué restricción única falló al insertar.
 - **Integración** (`tests/integration`): levantan **dos Workers reales** con `wrangler dev`, cada uno con su propia
-  D1 y sus propios secretos. Uno usa el Turnstile de prueba que aprueba y el otro el que rechaza. Cubren:
+  D1 y sus propios secretos. Uno usa el Turnstile de prueba que aprueba y el otro el que rechaza. Cubre:
   - happy paths y errores 400/401/403/404/409/422/429;
   - 8 reservas simultáneas del mismo horario;
   - vencimiento de pendientes, simulado adelantando `created_at`;
+  - purga de retención (citas y bloqueos de más de 120 días);
   - CSRF, cookies falsificadas o vencidas y bloqueo por fuerza bruta.
 - **Navegador** (`tests/e2e`): Microsoft Edge vía Playwright, en móvil y escritorio, con la CSP real del sitio.
   Emulan a la clienta (reserva, errores del formulario, horario tomado mientras llena los datos, adblocker que bloquea

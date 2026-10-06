@@ -257,3 +257,17 @@ async def record_booking_attempt(db, ip: str, phone: str) -> None:
     await db.prepare(
         "DELETE FROM booking_attempts WHERE created_at < datetime('now', '-2 days')"
     ).run()
+
+
+async def purge_old_bookings(db, retention_days: int = config.RETENTION_DAYS) -> int:
+    res = await db.prepare(
+        f"DELETE FROM bookings WHERE date < date('now', '-{int(retention_days)} days')"
+    ).run()
+    return int(res.meta.changes)
+
+
+async def purge_old_blocks(db, retention_days: int = config.RETENTION_DAYS) -> int:
+    res = await db.prepare(
+        f"DELETE FROM blocked_slots WHERE date < date('now', '-{int(retention_days)} days')"
+    ).run()
+    return int(res.meta.changes)
