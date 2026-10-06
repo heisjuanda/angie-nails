@@ -175,12 +175,32 @@ def test_forged_or_expired_cookies_rejected(server):
         "otra clave": auth.create_token(server.session_secret, "clave-vieja"),
         "firma alterada": valid[:-3] + "abc",
         "basura": "hola.mundo",
+        "firma válida sin sesión en el servidor": auth.create_token(server.session_secret, server.admin_password),
     }
     for label, token in cases.items():
         with _cookie_client(server, token) as c:
             assert c.get("/api/admin/session").json()["authenticated"] is False, label
+    claims = auth.token_claims(valid)
+    server.sql(f"INSERT INTO admin_sessions (sid, exp) VALUES ('{claims['sid']}', {claims['exp']})")
     with _cookie_client(server, valid) as c:
         assert c.get("/api/admin/session").json()["authenticated"] is True
+
+
+def test_logout_invalidates_token_on_server(server):
+    """Regresión: el token sobrevive al logout si no se borra del servidor."""
+    with server.client() as c:
+        r = c.post("/api/admin/login", json={"password": server.admin_password})
+        assert r.status_code == 200, r.text
+        if r.json().get("mfa_required"):
+            r = c.post("/api/admin/mfa", json={"code": mfa.current_code(server.totp_secret)})
+            assert r.status_code == 200, r.text
+        cookies = r.headers.get_list("set-cookie")
+        session_cookie = next(ck for ck in cookies if ck.startswith(f"{auth.COOKIE_NAME}="))
+        token = unquote(session_cookie.split("=", 1)[1].split(";")[0])
+        assert c.get("/api/admin/session").json()["authenticated"] is True
+        assert c.post("/api/admin/logout").status_code == 200
+    with _cookie_client(server, token) as c:
+        assert c.get("/api/admin/session").json()["authenticated"] is False
 
 
 def test_writes_without_origin_are_rejected_even_with_session(server):

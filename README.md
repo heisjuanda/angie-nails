@@ -257,9 +257,11 @@ npx wrangler secret put NOTIFY_EMAIL     # p. ej. angie@tu-dominio.com
   Una pendiente vencida se puede confirmar solo si su horario sigue libre.
 - **Bloqueos:** día completo o franja horaria (vacaciones, compromisos). Avisa si ya hay citas en ese horario.
 - **Seguridad:**
-  - Contraseña única (`ADMIN_PASSWORD`) y cookie de sesión firmada con HMAC (`SESSION_SECRET`), `HttpOnly`,
-    `Secure` y `SameSite=Strict`, válida 7 días.
-  - Cambiar cualquiera de los dos secretos cierra todas las sesiones.
+   - Contraseña única (`ADMIN_PASSWORD`) y cookie de sesión firmada con HMAC (`SESSION_SECRET`), `HttpOnly`,
+     `Secure` y `SameSite=Strict`, válida 7 días.
+   - El logout borra la sesión en D1 (`admin_sessions`): el token deja de valer al instante, no solo al
+     expirar. Un token firmado sin fila en esa tabla no autentica nada.
+   - Cambiar cualquiera de los dos secretos cierra todas las sesiones.
   - Las escrituras exigen `Origin` del mismo sitio.
   - Después de 5 intentos fallidos en 15 minutos, bloquea esa IP.
   - **Segundo factor (2FA) opcional** con TOTP: ver [Segundo factor](#segundo-factor-2fa-opcional).

@@ -207,6 +207,25 @@ async def clear_failed_mfa(db, ip: str) -> None:
     await db.prepare("DELETE FROM mfa_attempts WHERE ip = ?1").bind(ip).run()
 
 
+async def create_session(db, sid: str, exp: int) -> None:
+    await db.prepare("INSERT INTO admin_sessions (sid, exp) VALUES (?1, ?2)").bind(sid, exp).run()
+    await db.prepare("DELETE FROM admin_sessions WHERE exp < strftime('%s', 'now')").run()
+
+
+async def delete_session(db, sid: str | None) -> None:
+    if sid:
+        await db.prepare("DELETE FROM admin_sessions WHERE sid = ?1").bind(sid).run()
+
+
+async def session_active(db, sid: str | None) -> bool:
+    if not sid:
+        return False
+    row = await db.prepare(
+        "SELECT 1 FROM admin_sessions WHERE sid = ?1 AND exp > strftime('%s', 'now')"
+    ).bind(sid).first()
+    return row is not None
+
+
 #  topes de reservas
 
 async def active_bookings_for_phone(db, phone: str, day: date) -> int:

@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import json
+import secrets
 import time
 
 COOKIE_NAME = "ac_admin"
@@ -38,7 +39,10 @@ def create_token(
     session_secret: str, admin_password: str, now: float | None = None, ttl_s: int = SESSION_TTL_S,
 ) -> str:
     now = time.time() if now is None else now
-    payload = _b64e(json.dumps({"exp": int(now) + ttl_s}, separators=(",", ":")).encode())
+    payload = _b64e(json.dumps(
+        {"exp": int(now) + ttl_s, "sid": secrets.token_hex(16)},
+        separators=(",", ":"),
+    ).encode())
     sig = _b64e(hmac.new(_key(session_secret, admin_password), payload.encode(), hashlib.sha256).digest())
     return f"{payload}.{sig}"
 
@@ -55,6 +59,16 @@ def verify_token(token: str | None, session_secret: str, admin_password: str, no
     except (ValueError, KeyError, TypeError):
         return False
     return (time.time() if now is None else now) < exp
+
+
+def token_claims(token: str | None) -> dict:
+    if not token or token.count(".") != 1:
+        return {}
+    try:
+        claims = json.loads(_b64d(token.split(".")[0]))
+    except (ValueError, TypeError):
+        return {}
+    return claims if isinstance(claims, dict) else {}
 
 
 def create_mfa_ticket(session_secret: str, admin_password: str, now: float | None = None) -> str:

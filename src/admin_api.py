@@ -22,10 +22,13 @@ def _is_https(request) -> bool:
     return request.url.startswith("https://")
 
 
-def is_authenticated(env, request) -> bool:
+async def is_authenticated(env, request) -> bool:
     secret, password = _secrets(env)
     token = auth.read_cookie(request.headers.get("cookie"))
-    return auth.verify_token(token, secret, password)
+    if not auth.verify_token(token, secret, password):
+        return False
+    claims = auth.token_claims(token)
+    return await db.session_active(env.DB, claims.get("sid"))
 
 
 def _date_range(qs: dict, default_back: int, default_forward: int) -> tuple[date, date]:
@@ -63,6 +66,8 @@ async def login(env, request):
         return json_response({"ok": True, "mfa_required": True},
                              headers={"set-cookie": auth.mfa_cookie(ticket, _is_https(request))})
     token = auth.create_token(secret, password)
+    claims = auth.token_claims(token)
+    await db.create_session(env.DB, claims["sid"], claims["exp"])
     return json_response({"ok": True}, headers={"set-cookie": auth.session_cookie(token, _is_https(request))})
 
 
@@ -89,14 +94,19 @@ async def verify_mfa(env, request):
         return error(401, "Código incorrecto.", step="code")
 
     await db.clear_failed_mfa(env.DB, ip)
+    token = auth.create_token(secret, password)
+    claims = auth.token_claims(token)
+    await db.create_session(env.DB, claims["sid"], claims["exp"])
     secure = _is_https(request)
     return json_cookies_response({"ok": True}, [
         auth.clear_mfa_cookie(secure),
-        auth.session_cookie(auth.create_token(secret, password), secure),
+        auth.session_cookie(token, secure),
     ])
 
 
-def logout(request):
+async def logout(env, request):
+    claims = auth.token_claims(auth.read_cookie(request.headers.get("cookie")))
+    await db.delete_session(env.DB, claims.get("sid"))
     secure = _is_https(request)
     return json_cookies_response({"ok": True}, [
         auth.clear_cookie(secure),

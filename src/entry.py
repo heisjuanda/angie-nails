@@ -75,10 +75,10 @@ class Default(WorkerEntrypoint):
             if path == "/api/admin/mfa" and method == "POST":
                 return await admin_api.verify_mfa(env, request)
             if path == "/api/admin/logout" and method == "POST":
-                return admin_api.logout(request)
+                return await admin_api.logout(env, request)
             if path == "/api/admin/session" and method == "GET":
-                return admin_api.session(admin_api.is_authenticated(env, request))
-            if not admin_api.is_authenticated(env, request):
+                return admin_api.session(await admin_api.is_authenticated(env, request))
+            if not await admin_api.is_authenticated(env, request):
                 return error(401, "Inicia sesión para continuar.")
 
             if path == "/api/admin/bookings" and method == "GET":
