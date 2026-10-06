@@ -120,9 +120,11 @@ async def list_bookings(env, qs: dict):
     if status and status not in admin_logic.TRANSITIONS:
         return error(400, "Estado inválido.")
     rows = await db.list_bookings(env.DB, first, last, status)
+    stats = await db.booking_stats(env.DB, availability.now_local().date())
     return json_response({
         "from": first.isoformat(),
         "to": last.isoformat(),
+        "stats": stats,
         "bookings": [admin_logic.with_customer_link(admin_logic.serialize_booking(r)) for r in rows],
     })
 

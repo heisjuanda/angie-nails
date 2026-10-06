@@ -79,7 +79,7 @@ SLOT_STEP_MIN = 30
 TRAVEL_BUFFER_MIN = 45
 
 # Anticipación mínima para reservar, en horas.
-MIN_NOTICE_HOURS = 3
+MIN_NOTICE_HOURS = 1
 
 # Hasta cuántos días hacia adelante se puede reservar.
 BOOKING_WINDOW_DAYS = 21

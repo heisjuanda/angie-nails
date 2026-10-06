@@ -101,6 +101,23 @@ async def get_booking(db, code: str):
     return await db.prepare(f"SELECT {_BOOKING_COLUMNS} FROM bookings WHERE code = ?1").bind(code).first()
 
 
+async def booking_stats(db, today: date) -> dict:
+    row = await db.prepare(
+        f"""
+        SELECT
+          COALESCE(SUM(CASE WHEN status = 'pending' AND {_active()} THEN 1 ELSE 0 END), 0) AS pending,
+          COALESCE(SUM(CASE WHEN date = ?1 AND {_active()} THEN 1 ELSE 0 END), 0) AS today,
+          COALESCE(SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END), 0) AS confirmed
+        FROM bookings
+        """
+    ).bind(today.isoformat()).first()
+    return {
+        "pending": int(row["pending"]),
+        "today": int(row["today"]),
+        "confirmed": int(row["confirmed"]),
+    }
+
+
 async def get_booking_by_form_token(db, token: str):
     return await db.prepare(
         f"SELECT {_BOOKING_COLUMNS} FROM bookings WHERE form_token = ?1"

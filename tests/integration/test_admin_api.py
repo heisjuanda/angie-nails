@@ -299,6 +299,29 @@ def test_list_bookings_bad_params(admin, params):
     assert admin.get("/api/admin/bookings", params=params).status_code == 400
 
 
+def test_stats_are_totals_not_range_filtered(api, admin, server, free_day):
+    before = admin.get(
+        "/api/admin/bookings", params={"from": "2020-01-01", "to": "2020-01-02"}
+    ).json()["stats"]
+
+    pendiente = _book(api, free_day, "08:00")
+    confirmada = _book(api, free_day, "11:00")
+    admin.patch(f"/api/admin/bookings/{confirmada}", json={"status": "confirmed"})
+
+    r = admin.get("/api/admin/bookings", params={"from": "2020-01-01", "to": "2020-01-02"})
+    body = r.json()
+    assert body["bookings"] == []
+    assert body["stats"]["pending"] == before["pending"] + 1
+    assert body["stats"]["confirmed"] == before["confirmed"] + 1
+
+    expire_booking(server, pendiente)
+    stats = admin.get(
+        "/api/admin/bookings", params={"from": "2020-01-01", "to": "2020-01-02"}
+    ).json()["stats"]
+    assert stats["pending"] == before["pending"]
+    assert stats["confirmed"] == before["confirmed"] + 1
+
+
 def test_booking_lifecycle(api, admin, free_day):
     code = _book(api, free_day, "09:00", name="Laura Gómez")
 

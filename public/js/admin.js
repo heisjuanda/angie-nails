@@ -110,21 +110,20 @@
       const data = await api(`/bookings?${params}`);
       state.bookings = data.bookings;
       renderAgenda();
-      if (!state.status) renderStats(data.bookings);
+      renderStats(data.stats);
     } catch (err) {
       if (err.status !== 401) agenda.replaceChildren(h("p", { class: "agenda-empty", text: err.message }));
     }
   }
 
-  function renderStats(bookings) {
-    const today = iso(new Date());
-    const active = (b) => !b.expired && (b.status === "pending" || b.status === "confirmed");
-    const stats = [
-      [bookings.filter((b) => b.status === "pending" && !b.expired).length, "Por confirmar"],
-      [bookings.filter((b) => b.date === today && active(b)).length, "Hoy"],
-      [bookings.filter((b) => b.status === "confirmed").length, "Confirmadas"],
+  function renderStats(summary) {
+    const s = summary || { pending: 0, today: 0, confirmed: 0 };
+    const cards = [
+      [s.pending, "Por confirmar"],
+      [s.today, "Hoy"],
+      [s.confirmed, "Confirmadas"],
     ];
-    $("[data-stats]").replaceChildren(...stats.map(([n, label]) =>
+    $("[data-stats]").replaceChildren(...cards.map(([n, label]) =>
       h("div", { class: "stat" }, [h("span", { class: "stat-value", text: String(n) }), h("span", { class: "stat-label", text: label })])
     ));
   }
