@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="es-CO">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,11 +11,13 @@
   <link rel="apple-touch-icon" href="/img/icon-180.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="/css/admin.css">
   <script src="/js/admin.js" defer></script>
 </head>
+
 <body class="admin">
   <!--  LOGIN -->
   <main class="login" data-view="login" hidden>
@@ -27,12 +30,14 @@
       </label>
       <label class="field" data-mfa-field hidden>
         <span class="field-label">Código de verificación</span>
-        <input name="code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="000000">
+        <input name="code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code"
+          placeholder="000000">
       </label>
       <p class="form-message" role="alert" data-login-error hidden></p>
       <button class="btn btn-dark btn-block" type="submit">Entrar</button>
       <a class="login-back" href="/">← Volver al sitio</a>
-      <p class="login-credit">Construido por <a href="https://juandamoreno.dev" target="_blank" rel="noopener">Juan David Moreno Alfonso</a></p>
+      <p class="login-credit">Construido por <a href="https://juandamoreno.dev" target="_blank" rel="noopener">Juan
+          David Moreno Alfonso</a></p>
     </form>
   </main>
 
@@ -53,8 +58,10 @@
 
     <main class="container admin-main">
       <nav class="tabs" role="tablist" aria-label="Secciones">
-        <button class="tab is-active" type="button" role="tab" aria-selected="true" aria-controls="panel-agenda" id="tab-agenda" data-tab="agenda">Agenda</button>
-        <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-bloqueos" id="tab-bloqueos" data-tab="bloqueos">Bloqueos</button>
+        <button class="tab is-active" type="button" role="tab" aria-selected="true" aria-controls="panel-agenda"
+          id="tab-agenda" data-tab="agenda">Agenda</button>
+        <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-bloqueos"
+          id="tab-bloqueos" data-tab="bloqueos">Bloqueos</button>
       </nav>
 
       <!--  Agenda -->
@@ -152,7 +159,9 @@
       </div>
     </main>
 
-    <footer class="admin-footer">Construido por <a href="https://juandamoreno.dev" target="_blank" rel="noopener">Juan David Moreno Alfonso</a></footer>
+    <footer class="admin-footer">Construido por <a href="https://juandamoreno.dev" target="_blank" rel="noopener">Juan
+        David Moreno Alfonso</a></footer>
   </div>
 </body>
+
 </html>

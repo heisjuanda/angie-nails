@@ -23,6 +23,7 @@
   const q = (sel) => form.querySelector(sel);
 
   const ui = {
+    categories: q("[data-service-categories]"),
     services: q("[data-service-options]"),
     strip: q("[data-date-strip]"),
     prev: q("[data-date-prev]"),
@@ -43,6 +44,7 @@
     config: null,
     dates: [],
     page: 0,
+    category: null,
     serviceId: null,
     date: null,
     time: null,
@@ -65,6 +67,14 @@
     const [h, m] = hhmm.split(":").map(Number);
     return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "a. m." : "p. m."}`;
   };
+  const formatDuration = (min) => {
+    if (!min) return "";
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (h > 0 && m > 0) return `${h} h ${m} min`;
+    if (h > 0) return `${h} h`;
+    return `${m} min`;
+  };
   const pageSize = () => (mobile.matches ? 5 : 7);
   const service = () => state.config?.services.find((s) => s.id === state.serviceId);
   const CACHE_TTL_MS = 60000;
@@ -76,22 +86,77 @@
       if (k === "class") node.className = v;
       else if (k === "text") node.textContent = v;
       else if (k === "disabled") node.disabled = Boolean(v);
-      else if (v !== null && v !== undefined) node.setAttribute(k, v);
+      else if (k === "hidden") { if (v) node.hidden = true; }
+      else if (v !== null && v !== undefined && v !== false) node.setAttribute(k, v);
     }
     for (const c of [].concat(children)) node.append(c);
     return node;
   }
 
+  function setCategory(catId) {
+    state.category = catId;
+    if (ui.categories) {
+      ui.categories.querySelectorAll(".service-cat-btn").forEach((btn) => {
+        const active = btn.dataset.cat === catId;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-selected", String(active));
+      });
+    }
+    if (ui.services) {
+      ui.services.querySelectorAll(".service-option").forEach((opt) => {
+        opt.hidden = opt.dataset.category !== catId;
+      });
+    }
+  }
+
+  function renderCategories() {
+    if (!ui.categories || !state.config?.categories) return;
+    ui.categories.replaceChildren(...state.config.categories.map((cat) => {
+      const count = state.config.services.filter((s) => s.category === cat.id).length;
+      const isActive = cat.id === state.category;
+      const btn = h("button", {
+        class: `service-cat-btn${isActive ? " is-active" : ""}`,
+        type: "button",
+        role: "tab",
+        "aria-selected": String(isActive),
+        "data-cat": cat.id,
+      }, [
+        h("span", { text: cat.name }),
+        h("span", { class: "service-cat-count", text: `(${count})` }),
+      ]);
+      btn.addEventListener("click", () => setCategory(cat.id));
+      return btn;
+    }));
+  }
+
   function renderServices() {
+    if (!state.category && state.config?.categories?.length) {
+      state.category = state.config.categories[0].id;
+    }
+    renderCategories();
     ui.services.replaceChildren(...state.config.services.map((s) => {
       const input = h("input", { type: "radio", name: "service_id", value: s.id });
       input.addEventListener("change", () => selectService(s.id));
-      return h("label", { class: "service-option" }, [
+      const durationText = s.duration ? formatDuration(s.duration) : "";
+      const metaChildren = [
+        h("span", { class: "service-option-cat", text: CATEGORY_LABEL[s.category] ?? s.category }),
+      ];
+      if (durationText) {
+        metaChildren.push(
+          h("span", { class: "service-option-dot", text: "·" }),
+          h("span", { class: "service-option-duration", text: durationText })
+        );
+      }
+      return h("label", {
+        class: "service-option",
+        "data-category": s.category,
+        hidden: s.category !== state.category,
+      }, [
         input,
         h("span", { class: "radio", "aria-hidden": "true" }),
         h("span", {}, [
           h("span", { class: "service-option-name", text: s.name }),
-          h("span", { class: "service-option-cat", text: CATEGORY_LABEL[s.category] ?? s.category }),
+          h("span", { class: "service-option-meta" }, metaChildren),
         ]),
       ]);
     }));
@@ -99,6 +164,10 @@
 
   async function selectService(id, { scroll = false } = {}) {
     state.serviceId = id;
+    const s = state.config?.services.find((x) => x.id === id);
+    if (s && s.category !== state.category) {
+      setCategory(s.category);
+    }
     const radio = ui.services.querySelector(`input[value="${CSS.escape(id)}"]`);
     if (radio) radio.checked = true;
     clearError("service_id");

@@ -70,7 +70,13 @@ def open_booking(page):
 
 
 def pick(page, day, time, service_name):
-    page.locator("label.service-option", has_text=service_name).click()
+    opt = page.locator("label.service-option", has_text=service_name)
+    if not opt.is_visible():
+        for tab in page.locator(".service-cat-btn").all():
+            tab.click()
+            if opt.is_visible():
+                break
+    opt.click()
     page.wait_for_selector(".time-btn")
     label = messages.format_date_es(day)
     for _ in range(6):
@@ -499,6 +505,7 @@ def test_admin_blocks_day_and_customer_sees_it_closed(browser, server, free_day)
 
         c = customer.page
         open_booking(c)
+        c.locator(".service-cat-btn[data-cat='cejas']").click()
         c.locator("label.service-option", has_text="Henna").click()
         label = messages.format_date_es(free_day)
         for _ in range(6):
@@ -530,3 +537,25 @@ def test_admin_session_survives_reload_and_logout(desktop, server):
     for name in ("ac_admin", "ac_admin_mfa"):
         cookies = [c for c in desktop.context.cookies() if c["name"] == name]
         assert cookies == [] or cookies[0]["value"] == ""
+
+
+def test_service_categories_filter_services_responsively(mobile, desktop, server):
+    for view in (mobile, desktop):
+        page = view.page
+        open_booking(page)
+        # Por defecto la pestaña activa es Combos
+        assert page.locator(".service-cat-btn[data-cat='combos']").is_visible()
+        assert page.locator("label.service-option[data-category='combos']").first.is_visible()
+        assert not page.locator("label.service-option[data-category='unas']").first.is_visible()
+
+        # Cambiar a Uñas
+        page.locator(".service-cat-btn[data-cat='unas']").click()
+        assert page.locator(".service-cat-btn[data-cat='unas'].is-active").is_visible()
+        assert page.locator("label.service-option[data-category='unas']").first.is_visible()
+        assert not page.locator("label.service-option[data-category='combos']").first.is_visible()
+
+        # Cambiar a Cejas
+        page.locator(".service-cat-btn[data-cat='cejas']").click()
+        assert page.locator("label.service-option[data-category='cejas']").first.is_visible()
+        assert not page.locator("label.service-option[data-category='unas']").first.is_visible()
+

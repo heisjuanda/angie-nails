@@ -491,7 +491,7 @@
     });
 
     $("[data-logout]").addEventListener("click", async () => {
-      await api("/logout", { method: "POST" }).catch(() => {});
+      await api("/logout", { method: "POST" }).catch(() => { });
       showLogin();
     });
 
