@@ -31,6 +31,13 @@ def test_config_shape(api):
     assert all(s["price_label"] == "$ X" for s in data["services"])
     assert 6 not in data["open_weekdays"]
     assert data["turnstile_site_key"]
+    # Horario por día en la convención de JS (0 = domingo); el domingo no tiene agenda.
+    assert data["hours"] == {
+        str((d + 1) % 7): [list(span) for span in spans]
+        for d, spans in config.BUSINESS_HOURS.items() if spans
+    }
+    assert "0" not in data["hours"]
+    assert data["slot_step_min"] == config.SLOT_STEP_MIN
     # La ventana la fija el entorno del Worker (TEST_WINDOW_DAYS), no el config local.
     today = availability.now_local().date()
     last = today + timedelta(days=TEST_WINDOW_DAYS - 1)

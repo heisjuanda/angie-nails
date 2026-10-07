@@ -80,7 +80,7 @@ async def insert_booking_if_free(db, b: dict) -> bool:
 #  admin
 
 _BOOKING_COLUMNS = f"""
-    code, service_id, service_name, category, price, date, start_min, end_min,
+    code, service_id, service_name, category, price, duration_min, date, start_min, end_min,
     customer_name, phone, neighborhood, address, notes, status, created_at,
     (status = 'pending' AND NOT {_active()}) AS expired
 """
@@ -154,6 +154,39 @@ async def set_booking_status(db, code: str, current: str, new: str) -> bool:
          WHERE code = ?1 AND status = ?2 {guard}
         """
     ).bind(code, current, new).run()
+    return int(res.meta.changes) == 1
+
+
+async def update_booking_details(db, code: str, edit: dict) -> bool:
+    sets = ["updated_at = datetime('now')"]
+    params: list = []
+    for col in ("service_id", "service_name", "category", "price", "duration_min",
+                "start_min", "end_min", "busy_until_min", "neighborhood", "address"):
+        if col in edit:
+            params.append(edit[col])
+            sets.append(f"{col} = ?{len(params)}")
+
+    guard = ""
+    if "busy_until_min" in edit:
+        params.append(edit["start_min"])
+        params.append(edit["busy_until_min"])
+        start_p, end_p = len(params) - 1, len(params)
+        guard = f"""
+          AND NOT EXISTS (
+            SELECT 1 FROM bookings o
+             WHERE o.id != bookings.id AND o.date = bookings.date
+               AND o.start_min < ?{end_p} AND o.busy_until_min > ?{start_p}
+               AND {_active('o')}
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM blocked_slots
+             WHERE date = bookings.date AND start_min < ?{end_p} AND end_min > ?{start_p}
+          )"""
+
+    params.append(code)
+    res = await db.prepare(
+        f"UPDATE bookings SET {', '.join(sets)} WHERE code = ?{len(params)} {guard}"
+    ).bind(*params).run()
     return int(res.meta.changes) == 1
 
 

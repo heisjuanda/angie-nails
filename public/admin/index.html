@@ -120,6 +120,40 @@
         <h2 class="card-title blocks-title">Próximos bloqueos</h2>
         <ul class="blocks" data-blocks></ul>
       </section>
+
+      <!--  Editar cita -->
+      <div class="modal" data-edit-modal hidden>
+        <div class="modal-card card" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+          <h2 class="card-title" id="edit-title">Editar cita</h2>
+          <p class="muted"><strong data-edit-customer></strong> · <span data-edit-when></span></p>
+          <p class="muted">Solo se puede cambiar el horario, el servicio y la ubicación.</p>
+          <form class="edit-form" data-edit-form novalidate>
+            <div class="form-grid">
+              <label class="field">
+                <span class="field-label">Servicio</span>
+                <select name="service_id" required></select>
+              </label>
+              <label class="field">
+                <span class="field-label">Horario</span>
+                <select name="time" required></select>
+              </label>
+              <label class="field">
+                <span class="field-label">Barrio</span>
+                <input name="neighborhood" maxlength="80" required>
+              </label>
+              <label class="field field-wide">
+                <span class="field-label">Dirección</span>
+                <input name="address" maxlength="160" required>
+              </label>
+            </div>
+            <p class="form-message" role="alert" data-edit-message hidden></p>
+            <div class="modal-actions">
+              <button class="btn btn-outline" type="button" data-edit-cancel>Cancelar</button>
+              <button class="btn btn-dark" type="submit">Guardar cambios</button>
+            </div>
+          </form>
+        </div>
+      </div>
     </main>
 
     <footer class="admin-footer">Construido por <a href="https://juandamoreno.dev" target="_blank" rel="noopener">Juan David Moreno Alfonso</a></footer>

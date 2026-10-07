@@ -23,6 +23,9 @@ def get_config(env):
             "categories": config.CATEGORIES,
             "services": [{**s, "price_label": messages.format_price(s["price"])} for s in config.ALL_SERVICES],
             "open_weekdays": [d for d, spans in config.BUSINESS_HOURS.items() if spans],
+            # Horario por día de la semana en la convención de JS (0 = domingo).
+            "hours": {str((d + 1) % 7): spans for d, spans in config.BUSINESS_HOURS.items() if spans},
+            "slot_step_min": config.SLOT_STEP_MIN,
             "window": {"first": first.isoformat(), "last": last.isoformat()},
             "whatsapp": config.WHATSAPP,
             "coverage": config.COBERTURA_X,

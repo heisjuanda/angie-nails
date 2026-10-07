@@ -165,19 +165,41 @@ async def update_booking(env, request, code: str):
     data = await read_json(request)
     if data is None:
         return error(400, "Solicitud inválida.")
-    new = data.get("status")
+    if "customer_name" in data or "phone" in data:
+        return error(422, "El nombre y el teléfono no se pueden cambiar.")
 
     row = await db.get_booking(env.DB, code)
     if not row:
         return error(404, "Cita no encontrada.")
-    current = row["status"]
-    if not admin_logic.can_transition(current, new):
-        return error(422, f"No se puede pasar de «{admin_logic.STATUS_LABEL.get(current, current)}» a ese estado.")
 
-    if not await db.set_booking_status(env.DB, code, current, new):
-        if new == "confirmed":
-            return error(409, "No se puede confirmar: ese horario ya lo ocupa otra cita.")
-        return error(409, "La cita cambió mientras tanto. Recarga la agenda.")
+    new_status = None
+    if "status" in data:
+        new_status = data.get("status")
+        if not admin_logic.can_transition(row["status"], new_status):
+            return error(422, f"No se puede pasar de «{admin_logic.STATUS_LABEL.get(row['status'], row['status'])}» a ese estado.")
+
+    if admin_logic.has_edit_fields(data):
+        if row["status"] not in admin_logic.EDITABLE_STATUSES:
+            return error(422, "Solo se pueden editar citas pendientes o confirmadas.")
+        if row["expired"]:
+            return error(422, "Esa cita ya venció.")
+        try:
+            edit = admin_logic.parse_booking_edit(data, row)
+        except admin_logic.AdminError as e:
+            return error(e.status, str(e))
+        if not await db.update_booking_details(env.DB, code, edit):
+            return error(409, "Ese horario ya lo ocupa otra cita. Recarga la agenda.")
+        row = await db.get_booking(env.DB, code)
+
+    if new_status is not None:
+        if not await db.set_booking_status(env.DB, code, row["status"], new_status):
+            if new_status == "confirmed":
+                return error(409, "No se puede confirmar: ese horario ya lo ocupa otra cita.")
+            return error(409, "La cita cambió mientras tanto. Recarga la agenda.")
+        row = await db.get_booking(env.DB, code)
+
+    if new_status is None and not admin_logic.has_edit_fields(data):
+        return error(400, "Nada que actualizar.")
 
     updated = await db.get_booking(env.DB, code)
     return json_response({"booking": admin_logic.with_customer_link(admin_logic.serialize_booking(updated))})

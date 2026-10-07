@@ -13,7 +13,7 @@
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-  const state = { status: "", range: "upcoming", page: 1, total: 0, perPage: 0, bookings: [], refreshTimer: null };
+  const state = { status: "", range: "upcoming", page: 1, total: 0, perPage: 0, bookings: [], refreshTimer: null, services: [], hours: {}, slotStep: 30, configLoaded: false, editing: null };
 
   function h(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
@@ -32,6 +32,9 @@
   const parseDate = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
   const dateLabel = (s) => { const d = parseDate(s); const t = `${DOW[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`; return t[0].toUpperCase() + t.slice(1); };
   const phoneLabel = (p) => p.replace(/^57(\d{3})(\d{3})(\d{4})$/, "$1 $2 $3");
+  const toMin = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
+  const toHhmm = (min) => `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
+  const timeLabel = (hhmm) => { const h = Math.floor(toMin(hhmm) / 60); const m = toMin(hhmm) % 60; return `${(h % 12) || 12}:${pad(m)} ${h < 12 ? "a. m." : "p. m."}`; };
 
   /*  API */
   class ApiError extends Error {
@@ -49,6 +52,19 @@
     if (res.status === 401 && path !== "/login" && path !== "/mfa") { showLogin(); throw new ApiError(401, data.error); }
     if (!res.ok) throw new ApiError(res.status, data.error || "Algo salió mal. Intenta de nuevo.", data);
     return data;
+  }
+
+  async function loadSiteConfig() {
+    if (state.configLoaded) return;
+    try {
+      const res = await fetch("/api/config", { credentials: "same-origin" });
+      if (!res.ok) return;
+      const data = await res.json();
+      state.services = data.services || [];
+      state.hours = data.hours || {};
+      state.slotStep = data.slot_step_min || 30;
+      state.configLoaded = true;
+    } catch { /* se reintenta al abrir el editor */ }
   }
 
   /*  vistas */
@@ -197,6 +213,11 @@
       btn.addEventListener("click", () => onAction(b, "confirmed", btn, "Confirmar"));
       actions.push(btn);
     }
+    if (!b.expired && (b.status === "pending" || b.status === "confirmed")) {
+      const edit = h("button", { type: "button", class: "btn btn-outline", "data-action": "edit", text: "Editar" });
+      edit.addEventListener("click", () => openEdit(b));
+      actions.unshift(edit);
+    }
     actions.push(h("a", { class: "btn btn-outline", href: b.whatsapp_url, target: "_blank", rel: "noopener", text: "WhatsApp" }));
 
     return h("article", { class: `booking-card is-${status}`, "data-code": b.code }, [
@@ -235,6 +256,73 @@
       if (err.status !== 401) toast(err.message, { error: true });
       btn.disabled = false;
       if (err.status === 409) loadAgenda({ quiet: true });
+    }
+  }
+
+  /*  editar cita: horario, servicio y ubicación */
+  function setEditMessage(msg) {
+    const node = $("[data-edit-message]");
+    node.textContent = msg || "";
+    node.hidden = !msg;
+  }
+
+  function closeEdit() {
+    $("[data-edit-modal]").hidden = true;
+    state.editing = null;
+  }
+
+  function timeOptions(dateStr) {
+    const spans = state.hours[String(parseDate(dateStr).getDay())] || [];
+    const times = [];
+    for (const [open, close] of spans) {
+      for (let t = toMin(open); t < toMin(close); t += state.slotStep) times.push(toHhmm(t));
+    }
+    return times;
+  }
+
+  async function openEdit(b) {
+    if (!state.configLoaded) await loadSiteConfig();
+    state.editing = b.code;
+    const form = $("[data-edit-form]");
+    $("[data-edit-customer]").textContent = `${b.customer_name} · ${phoneLabel(b.phone)}`;
+    $("[data-edit-when]").textContent = `${b.date_label} · ${b.start_label}`;
+    const service = form.elements.service_id;
+    service.replaceChildren(...state.services.map((s) =>
+      h("option", { value: s.id, text: `${s.name} · ${s.price_label}` })));
+    service.value = b.service_id;
+    const time = form.elements.time;
+    const times = timeOptions(b.date);
+    if (!times.includes(b.start)) times.unshift(b.start);
+    time.replaceChildren(...times.map((t) => h("option", { value: t, text: timeLabel(t) })));
+    time.value = b.start;
+    form.elements.neighborhood.value = b.neighborhood;
+    form.elements.address.value = b.address;
+    setEditMessage("");
+    $("[data-edit-modal]").hidden = false;
+  }
+
+  async function onEditSubmit(e) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const submit = form.querySelector("button[type=submit]");
+    submit.disabled = true;
+    try {
+      await api(`/bookings/${encodeURIComponent(state.editing)}`, {
+        method: "PATCH",
+        body: {
+          time: form.elements.time.value,
+          service_id: form.elements.service_id.value,
+          neighborhood: form.elements.neighborhood.value,
+          address: form.elements.address.value,
+        },
+      });
+      closeEdit();
+      toast("Cita actualizada.");
+      await loadAgenda({ quiet: true });
+    } catch (err) {
+      if (err.status !== 401) setEditMessage(err.message);
+    } finally {
+      submit.disabled = false;
     }
   }
 
@@ -321,6 +409,7 @@
 
   async function init() {
     initTabs();
+    loadSiteConfig();
 
     $("[data-login-form]").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -388,6 +477,12 @@
     blockForm.elements.all_day.addEventListener("change", syncTimeFields);
     blockForm.addEventListener("submit", onBlockSubmit);
     syncTimeFields();
+
+    $("[data-edit-cancel]").addEventListener("click", closeEdit);
+    $("[data-edit-form]").addEventListener("submit", onEditSubmit);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !$("[data-edit-modal]").hidden) closeEdit();
+    });
 
     try {
       const { authenticated } = await api("/session");

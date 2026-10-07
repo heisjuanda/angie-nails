@@ -104,3 +104,15 @@
 .block-item strong { font-weight: 500; }
 .block-item .muted { font-size: 14px; }
 @media (max-width: 700px) { .field.check { padding-top: 0; } }
+
+/*  editar cita */
+.field select {
+  min-height: 42px; padding: 0 38px 0 16px; border: 1px solid var(--line-strong); border-radius: var(--radius);
+  background: var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231f1a17' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 16px;
+  appearance: none; font-size: 15px; cursor: pointer;
+}
+.modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgb(31 26 23 / .45); }
+.modal-card { width: 100%; max-width: 480px; display: grid; gap: 14px; max-height: calc(100vh - 32px); overflow-y: auto; }
+.modal-card .muted { font-size: 14px; margin: 0; }
+.edit-form .form-grid { gap: 14px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }

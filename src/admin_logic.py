@@ -4,7 +4,9 @@ import re
 from datetime import date
 
 import availability
+import config
 import messages
+from validation import MAX_LEN
 
 # Cambios de estado permitidos para una cita.
 TRANSITIONS = {
@@ -56,6 +58,78 @@ def parse_block(data: dict) -> dict:
 
     reason = " ".join(str(data.get("reason") or "").split())[:120]
     return {"date": day, "start_min": start, "end_min": end, "reason": reason}
+
+
+#  edición de citas: solo horario, servicio y ubicación.
+
+EDITABLE_STATUSES = {"pending", "confirmed"}
+EDIT_FIELDS = ("time", "service_id", "neighborhood", "address")
+_LOCATION_MIN = {"neighborhood": 2, "address": 5}
+_LOCATION_MSG = {"neighborhood": "Escribe el barrio.", "address": "Escribe la dirección."}
+
+
+def has_edit_fields(data) -> bool:
+    return isinstance(data, dict) and any(f in data for f in EDIT_FIELDS)
+
+
+def valid_start_minutes(day: date) -> set[int]:
+    minutes: set[int] = set()
+    for open_hhmm, close_hhmm in config.BUSINESS_HOURS.get(day.weekday(), []):
+        start = availability.to_minutes(open_hhmm)
+        close = availability.to_minutes(close_hhmm)
+        while start < close:
+            minutes.add(start)
+            start += config.SLOT_STEP_MIN
+    return minutes
+
+
+def parse_booking_edit(data: dict, row: dict) -> dict:
+    if not isinstance(data, dict):
+        raise AdminError("Solicitud inválida.", 400)
+    if "customer_name" in data or "phone" in data:
+        raise AdminError("El nombre y el teléfono no se pueden cambiar.")
+
+    out: dict = {}
+    start_min = int(row["start_min"])
+    duration = int(row["duration_min"])
+
+    if "time" in data:
+        time = str(data.get("time") or "")
+        if not _TIME_RE.match(time):
+            raise AdminError("Elige una hora válida.")
+        start_min = availability.to_minutes(time)
+        if start_min not in valid_start_minutes(date.fromisoformat(row["date"])):
+            raise AdminError("Ese horario queda fuera del horario de atención.")
+        out["start_min"] = start_min
+
+    if "service_id" in data:
+        service = config.SERVICES_BY_ID.get(str(data.get("service_id") or ""))
+        if not service:
+            raise AdminError("Elige un servicio válido.")
+        out.update({
+            "service_id": service["id"],
+            "service_name": service["name"],
+            "category": service["category"],
+            "price": service["price"],
+            "duration_min": service["duration"],
+        })
+        duration = service["duration"]
+
+    if "start_min" in out or "duration_min" in out:
+        out["start_min"] = start_min
+        out["end_min"] = start_min + duration
+        out["busy_until_min"] = start_min + duration + config.TRAVEL_BUFFER_MIN
+
+    for field in ("neighborhood", "address"):
+        if field in data:
+            text = " ".join(str(data.get(field) or "").split())[:MAX_LEN[field]]
+            if len(text) < _LOCATION_MIN[field]:
+                raise AdminError(_LOCATION_MSG[field])
+            out[field] = text
+
+    if not out:
+        raise AdminError("Nada que cambiar.", 400)
+    return out
 
 
 def serialize_booking(row: dict) -> dict:

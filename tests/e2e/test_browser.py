@@ -362,6 +362,99 @@ def test_admin_confirms_and_cancels_bookings(desktop, server, free_day):
     assert desktop.errors == []
 
 
+#  Angélica edita citas: horario, servicio y ubicación
+
+def test_admin_edits_time_service_and_location(desktop, server, free_day):
+    import httpx
+    r = httpx.post(
+        f"{server.base_url}/api/bookings",
+        json=booking_payload(free_day, "08:00", name="Paola Ríos",
+                             phone=PHONES["Paola Ríos"],
+                             neighborhood="San Fernando", address="Carrera 34 # 5-20"),
+        timeout=30)
+    assert r.status_code == 201, r.text
+    code = r.json()["code"]
+
+    page = desktop.page
+    admin_login(page, server.admin_password, server.totp_secret)
+    card = page.locator(f".booking-card[data-code='{code}']")
+    card.wait_for()
+    card.locator("[data-action=edit]").click()
+
+    modal = page.locator("[data-edit-modal]")
+    modal.wait_for(state="visible")
+    # El nombre y el teléfono se muestran, pero no hay campos para cambiarlos.
+    assert "Paola Ríos" in modal.text_content()
+    assert "300 111 0001" in modal.text_content()
+    assert modal.locator("input[name=name], input[name=phone]").count() == 0
+
+    page.select_option("[data-edit-form] select[name=service_id]", "volumen")
+    page.select_option("[data-edit-form] select[name=time]", "11:00")
+    page.fill("[data-edit-form] input[name=neighborhood]", "El Peñón")
+    page.fill("[data-edit-form] input[name=address]", "Avenida 4 Oeste # 2-10")
+    page.click("[data-edit-form] button[type=submit]")
+    modal.wait_for(state="hidden")
+
+    row = server.sql(
+        f"SELECT service_id, service_name, start_min, end_min, busy_until_min, "
+        f"neighborhood, address, customer_name, phone FROM bookings WHERE code = '{code}'"
+    )[0]
+    assert row == {
+        "service_id": "volumen", "service_name": "Volumen",
+        "start_min": 660, "end_min": 750, "busy_until_min": 795,
+        "neighborhood": "El Peñón", "address": "Avenida 4 Oeste # 2-10",
+        "customer_name": "Paola Ríos", "phone": "573001110001",
+    }
+
+    # La tarjeta ya muestra el nuevo horario y servicio.
+    assert "11:00 a. m." in card.text_content()
+    assert "Volumen" in card.text_content()
+
+    # El hueco viejo quedó libre y el nuevo ocupado.
+    def slot(time):
+        res = httpx.get(f"{server.base_url}/api/availability",
+                        params={"service": "semipermanente",
+                                "from": free_day.isoformat(), "days": 1},
+                        timeout=30)
+        assert res.status_code == 200
+        return {s["time"]: s["available"] for s in res.json()["days"][0]["slots"]}[time]
+
+    assert slot("08:00") is True
+    assert slot("11:00") is False
+    assert desktop.errors == [] and desktop.http_errors == []
+
+
+def test_admin_edit_of_a_taken_slot_shows_the_error(desktop, server, free_day):
+    import httpx
+    codes = []
+    for name in ("Paola Ríos", "Camila Díaz"):
+        r = httpx.post(f"{server.base_url}/api/bookings",
+                       json=booking_payload(free_day, "08:00" if not codes else "11:00",
+                                            name=name, phone=PHONES[name]),
+                       timeout=30)
+        assert r.status_code == 201, r.text
+        codes.append(r.json()["code"])
+
+    page = desktop.page
+    admin_login(page, server.admin_password, server.totp_secret)
+    card = page.locator(f".booking-card[data-code='{codes[0]}']")
+    card.wait_for()
+    card.locator("[data-action=edit]").click()
+
+    modal = page.locator("[data-edit-modal]")
+    modal.wait_for(state="visible")
+    page.select_option("[data-edit-form] select[name=time]", "11:00")
+    page.click("[data-edit-form] button[type=submit]")
+    msg = page.locator("[data-edit-message]")
+    msg.wait_for(state="visible")
+    assert "ya lo ocupa" in msg.text_content()
+    # El modal sigue abierto y la cita no cambió.
+    assert modal.is_visible()
+    row = server.sql(f"SELECT start_min FROM bookings WHERE code = '{codes[0]}'")[0]
+    assert row["start_min"] == 480
+    assert desktop.errors == []
+
+
 def test_admin_blocks_day_and_customer_sees_it_closed(browser, server, free_day):
     admin = Page(browser, server.base_url, **MOBILE)
     customer = Page(browser, server.base_url, **DESKTOP)
