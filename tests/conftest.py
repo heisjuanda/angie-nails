@@ -14,6 +14,7 @@ import os
 import secrets
 import shutil
 import signal
+import socket
 import subprocess
 import tempfile
 import time
@@ -57,6 +58,92 @@ def _kill_tree(proc: subprocess.Popen) -> None:
         pass
 
 
+def _listener_pid(port: int) -> int | None:
+    if os.name != "posix":
+        return None
+    want = f"{port:04X}"
+    inodes: set[str] = set()
+    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
+        try:
+            rows = Path(table).read_text(encoding="utf-8").splitlines()[1:]
+        except OSError:
+            continue
+        for row in rows:
+            f = row.split()
+            # f[1] = "IP:Puerto" en hex, f[3] = estado ("0A" = LISTEN),
+            # f[9] = inode del socket.
+            if f[1].rsplit(":", 1)[1] == want and f[3] == "0A":
+                inodes.add(f"socket:[{f[9]}]")
+    if not inodes:
+        return None
+    for proc in Path("/proc").iterdir():
+        if not proc.name.isdigit():
+            continue
+        try:
+            for fd in (proc / "fd").iterdir():
+                if fd.readlink().as_posix() in inodes:
+                    return int(proc.name)
+        except OSError:
+            continue
+    return None
+
+
+def _kill_orphaned_workerd(port: int) -> bool:
+    """Mata un workerd huérfano que siga escuchando en `port` y espera
+    a que suelte el puerto. Solo toca procesos que sean claramente un
+    servidor de pruebas (workerd/wrangler); cualquier otra cosa se
+    deja viva y quien llama decide qué hacer."""
+    if os.name != "posix":
+        return False
+    pid = _listener_pid(port)
+    if pid is None:
+        return True
+    try:
+        cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().decode("utf-8", "replace")
+    except OSError:
+        return False
+    if "workerd" not in cmdline and "wrangler" not in cmdline:
+        return False
+    try:
+        os.killpg(os.getpgid(pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            return False
+    print(f"conftest: matado workerd huérfano (pid {pid}) que ocupaba el puerto {port}")
+    for _ in range(40):
+        if _listener_pid(port) is None:
+            return True
+        time.sleep(0.25)
+    return False
+
+
+def _assert_port_free(port: int) -> None:
+    """wrangler dev no arranca si el puerto está ocupado. Si quien lo
+    ocupa es un workerd huérfano de una corrida anterior (pytest matado
+    a la fuerza, sin teardown), se mata solo y la corrida sigue; si no,
+    mejor fallar aquí con el diagnóstico en la mano, porque wait_ready()
+    contestaría con ese proceso y toda la corrida hablaría con su estado
+    stale: citas viejas, intentos de login acumulados y la configuración
+    de aquel entonces."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind(("127.0.0.1", port))
+            return
+        except OSError:
+            pass
+    if _kill_orphaned_workerd(port):
+        return
+    raise RuntimeError(
+        f"El puerto {port} ya está en uso por un proceso que no es un "
+        f"servidor de pruebas. Mátalo antes de correr los tests:\n"
+        f"  ps aux | grep -E 'workerd|wrangler' | grep -v grep\n"
+        f"  kill -9 <pid>"
+    )
+
+
 def run_wrangler(args: list[str], timeout: float = 180) -> str:
     with tempfile.TemporaryFile("w+", encoding="utf-8") as out:
         proc = subprocess.Popen([NPX, "wrangler", *args], cwd=ROOT, stdin=subprocess.DEVNULL,
@@ -96,7 +183,6 @@ class Instance:
         return self.workdir / "state"
 
     def sql(self, command: str) -> list[dict]:
-        """Ejecuta SQL directamente sobre la D1 local de esta instancia."""
         text = run_wrangler(["d1", "execute", DB_NAME, "--local", "--persist-to", str(self.persist_dir),
                              "--json", "--command", command], timeout=120)
         return json.loads(text[text.index("["):])[0]["results"]
@@ -117,6 +203,8 @@ class Instance:
         run_wrangler(["d1", "migrations", "apply", DB_NAME, "--local", "--persist-to", str(self.persist_dir)])
 
     def start(self) -> None:
+        _assert_port_free(self.port)
+        _assert_port_free(self.inspector_port)
         env_file = self.workdir / ".env.test"
         self.log_path = self.workdir / "wrangler.log"
         log = open(self.log_path, "w", encoding="utf-8")

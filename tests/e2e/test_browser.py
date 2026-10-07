@@ -32,6 +32,9 @@ class Page:
     def __init__(self, browser, base_url, **ctx):
         self.context = browser.new_context(base_url=base_url, **ctx)
         self.page = self.context.new_page()
+        # Se cortan aquí para que los tests no dependan de la red externa.
+        self.page.route("https://fonts.googleapis.com/**", lambda route: route.abort())
+        self.page.route("https://fonts.gstatic.com/**", lambda route: route.abort())
         self.errors: list[str] = []
         self.http_errors: list[str] = []
         self.page.on("pageerror", lambda e: self.errors.append(str(e)))
@@ -328,7 +331,8 @@ def test_admin_confirms_and_cancels_bookings(desktop, server, free_day):
     codes = []
     for t, name in (("08:00", "Paola Ríos"), ("11:00", "Camila Díaz")):
         r = httpx.post(f"{server.base_url}/api/bookings",
-                       json=booking_payload(free_day, t, name=name, phone=PHONES[name]))
+                       json=booking_payload(free_day, t, name=name, phone=PHONES[name]),
+                       timeout=30)
         codes.append(r.json()["code"])
 
     page = desktop.page
