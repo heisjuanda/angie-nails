@@ -1,7 +1,7 @@
 [project]
 name = "ac-luxury-aesthetics"
 version = "0.1.0"
-description = "Sitio y agenda de citas a domicilio de AC Luxury Aesthetics (uñas, cejas y pestañas) en Cali"
+description = "Sitio y agenda de citas en el estudio de AC Luxury Aesthetics (uñas, cejas y pestañas) en Cali"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []

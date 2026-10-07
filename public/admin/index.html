@@ -126,24 +126,20 @@
         <div class="modal-card card" role="dialog" aria-modal="true" aria-labelledby="edit-title">
           <h2 class="card-title" id="edit-title">Editar cita</h2>
           <p class="muted"><strong data-edit-customer></strong> · <span data-edit-when></span></p>
-          <p class="muted">Solo se puede cambiar el horario, el servicio y la ubicación.</p>
+          <p class="muted">Solo se puede cambiar la fecha, el horario y el servicio.</p>
           <form class="edit-form" data-edit-form novalidate>
             <div class="form-grid">
-              <label class="field">
+              <label class="field field-wide">
                 <span class="field-label">Servicio</span>
                 <select name="service_id" required></select>
               </label>
               <label class="field">
-                <span class="field-label">Horario</span>
-                <select name="time" required></select>
+                <span class="field-label">Fecha</span>
+                <input name="date" type="date" required>
               </label>
               <label class="field">
-                <span class="field-label">Barrio</span>
-                <input name="neighborhood" maxlength="80" required>
-              </label>
-              <label class="field field-wide">
-                <span class="field-label">Dirección</span>
-                <input name="address" maxlength="160" required>
+                <span class="field-label">Horario</span>
+                <select name="time" required></select>
               </label>
             </div>
             <p class="form-message" role="alert" data-edit-message hidden></p>

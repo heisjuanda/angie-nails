@@ -250,7 +250,9 @@ def test_brute_force_lockout(strict_server):
 #  citas
 
 def test_cancelling_every_booking_frees_the_whole_day(api, admin, server, free_day):
-    codes = [_book(api, free_day, t) for t in ("08:00", "10:30", "13:00", "15:30")]
+    # Citas seguidas de 90 min llenan el día (08:00–18:00), sin traslado.
+    times = ("08:00", "09:30", "11:00", "12:30", "14:00", "15:30", "17:00")
+    codes = [_book(api, free_day, t) for t in times]
     assert len([s for s, a in slots_of(api, free_day).items() if a]) == 0
 
     for code in codes:
@@ -445,7 +447,7 @@ def test_edit_moves_the_booking_to_a_new_slot(api, admin, server, free_day):
     assert booking["start_label"] == "11:00 a. m."
     row = server.sql(
         f"SELECT start_min, end_min, busy_until_min FROM bookings WHERE code = '{code}'")[0]
-    assert (row["start_min"], row["end_min"], row["busy_until_min"]) == (660, 750, 795)
+    assert (row["start_min"], row["end_min"], row["busy_until_min"]) == (660, 750, 750)
     # El hueco viejo queda libre y el nuevo ocupado.
     assert slots_of(api, free_day)["08:00"] is True
     assert slots_of(api, free_day)["11:00"] is False
@@ -465,24 +467,7 @@ def test_edit_changes_service_duration_and_price(api, admin, server, free_day):
         f"FROM bookings WHERE code = '{code}'")[0]
     assert row == {"service_id": "combo-triple", "service_name": "Combo Triple",
                    "category": "combos", "duration_min": 210, "end_min": 690,
-                   "busy_until_min": 735}
-
-
-def test_edit_updates_location_but_never_name_or_phone(api, admin, server, free_day):
-    code = _book(api, free_day, "08:00", name="Paola Ríos", phone="300 111 0001",
-                 neighborhood="San Fernando", address="Carrera 34 # 5-20")
-    r = admin.patch(f"/api/admin/bookings/{code}", json={
-        "neighborhood": "El Peñón", "address": "Avenida 4 Oeste # 2-10"})
-    assert r.status_code == 200, r.text
-    booking = r.json()["booking"]
-    assert booking["neighborhood"] == "El Peñón"
-    assert booking["address"] == "Avenida 4 Oeste # 2-10"
-    assert booking["customer_name"] == "Paola Ríos"
-    assert booking["phone"] == "573001110001"
-    row = server.sql(
-        f"SELECT customer_name, phone, neighborhood, address FROM bookings WHERE code = '{code}'")[0]
-    assert row == {"customer_name": "Paola Ríos", "phone": "573001110001",
-                   "neighborhood": "El Peñón", "address": "Avenida 4 Oeste # 2-10"}
+                   "busy_until_min": 690}
 
 
 def test_edit_rejects_name_and_phone_changes(api, admin, server, free_day):
@@ -528,13 +513,6 @@ def test_edit_rejects_unknown_service(api, admin, free_day):
     code = _book(api, free_day, "08:00")
     r = admin.patch(f"/api/admin/bookings/{code}", json={"service_id": "no-existe"})
     assert r.status_code == 422
-
-
-def test_edit_rejects_short_location(api, admin, free_day):
-    code = _book(api, free_day, "08:00")
-    for body in ({"neighborhood": "x"}, {"address": "abc"}, {"neighborhood": ""}):
-        r = admin.patch(f"/api/admin/bookings/{code}", json=body)
-        assert r.status_code == 422, body
 
 
 def test_edit_without_changes_is_a_client_error(api, admin, free_day):
@@ -586,11 +564,40 @@ def test_edit_keeps_the_status_flow_intact(api, admin, free_day):
 def test_edit_moved_booking_still_blocks_its_new_slot(api, admin, free_day):
     code = _book(api, free_day, "08:00")
     admin.patch(f"/api/admin/bookings/{code}", json={"time": "11:00"})
-    # 08:00 + 90 min + 45 de desplazamiento = ocupado hasta las 13:15.
+    # 11:00 + 90 min = ocupado hasta 12:30.
     assert api.post("/api/bookings", json=booking_payload(free_day, "11:00")).status_code == 409
     assert api.post("/api/bookings", json=booking_payload(free_day, "12:00")).status_code == 409
-    assert api.post("/api/bookings", json=booking_payload(free_day, "13:00")).status_code == 409
-    assert api.post("/api/bookings", json=booking_payload(free_day, "13:30")).status_code == 201
+    assert api.post("/api/bookings", json=booking_payload(free_day, "12:30")).status_code == 201
+
+
+def test_edit_moves_booking_to_a_new_date(api, admin, free_day, _day_pool):
+    other_day = next(_day_pool)
+    code = _book(api, free_day, "08:00")
+    r = admin.patch(f"/api/admin/bookings/{code}", json={"date": other_day.isoformat(), "time": "10:00"})
+    assert r.status_code == 200, r.text
+    booking = r.json()["booking"]
+    assert booking["date"] == other_day.isoformat()
+    assert booking["start"] == "10:00"
+    # El hueco en free_day queda libre y en other_day ocupado
+    assert slots_of(api, free_day)["08:00"] is True
+    assert slots_of(api, other_day)["10:00"] is False
+
+
+def test_edit_rejects_past_date(api, admin, free_day):
+    code = _book(api, free_day, "08:00")
+    ayer = (availability.now_local().date() - timedelta(days=1)).isoformat()
+    r = admin.patch(f"/api/admin/bookings/{code}", json={"date": ayer})
+    assert r.status_code == 422
+    assert "pasado" in r.json()["error"]
+
+
+def test_edit_moves_to_occupied_slot_on_new_date_conflicts(api, admin, free_day, _day_pool):
+    other_day = next(_day_pool)
+    code1 = _book(api, free_day, "08:00")
+    _book(api, other_day, "10:00")
+    r = admin.patch(f"/api/admin/bookings/{code1}", json={"date": other_day.isoformat(), "time": "10:00"})
+    assert r.status_code == 409
+    assert "ya lo ocupa" in r.json()["error"]
 
 
 #  bloqueos
@@ -615,8 +622,8 @@ def test_partial_block_only_affects_its_range(api, admin, free_day):
     r = admin.post("/api/admin/blocks", json={"date": free_day.isoformat(), "start": "12:00", "end": "14:00"})
     assert r.status_code == 201
     slots = slots_of(api, free_day)
-    assert slots["08:00"] and slots["09:30"]
-    assert not slots["10:00"]
+    assert slots["08:00"] and slots["09:30"] and slots["10:30"]
+    assert not slots["11:00"]
     assert not slots["13:00"]
     assert slots["14:00"]
 

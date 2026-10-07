@@ -113,13 +113,6 @@ async function initServices() {
     ]);
   }));
 
-  // Cobertura y recargo
-  const coverage = config.coverage.length ? config.coverage.join(", ") : "Cali";
-  $("[data-coverage]").textContent =
-    `Cobertura: ${coverage}` + (config.travel_fee_label ? ` · Recargo de domicilio: ${config.travel_fee_label}` : " · Recargo de domicilio: X");
-  const list = $("[data-coverage-list]");
-  config.coverage.forEach((b) => list.append(el("option", { value: b })));
-
   // WhatsApp del pie de página
   $$("[data-whatsapp-link]").forEach((a) => { a.href = `https://wa.me/${config.whatsapp}`; });
 }

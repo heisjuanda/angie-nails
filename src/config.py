@@ -13,13 +13,7 @@ DURACION_TRIPLE_X = 210
 HORA_INICIO_X = "08:00"
 HORA_FIN_X = "18:00"
 
-# Barrios o comunas de Cali que atiende. Vacío = se acepta cualquier barrio.
-COBERTURA_X: list[str] = []
-
-# Recargo de domicilio en COP. None = no se muestra.
-RECARGO_DOMICILIO_X = None
-
-# Contacto
+# Horario laboral provisional (hora de Colombia, formato 24 h).
 
 WHATSAPP = "573245967079"
 
@@ -74,9 +68,6 @@ BUSINESS_HOURS: dict[int, list[tuple[str, str]]] = {
 
 # Cada cuántos minutos se ofrece un horario de inicio.
 SLOT_STEP_MIN = 30
-
-# Tiempo de desplazamiento reservado después de cada cita (es a domicilio).
-TRAVEL_BUFFER_MIN = 45
 
 # Anticipación mínima para reservar, en horas.
 MIN_NOTICE_HOURS = 1

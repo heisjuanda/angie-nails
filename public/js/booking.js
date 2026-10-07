@@ -67,7 +67,8 @@
   };
   const pageSize = () => (mobile.matches ? 5 : 7);
   const service = () => state.config?.services.find((s) => s.id === state.serviceId);
-  const daySlots = (iso) => state.slots.get(state.serviceId)?.get(iso);
+  const CACHE_TTL_MS = 60000;
+  const daySlots = (iso) => state.slots.get(state.serviceId)?.days?.get(iso);
 
   function h(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
@@ -110,7 +111,11 @@
   async function loadAvailability({ force = false } = {}) {
     const id = state.serviceId;
     if (!id) return;
-    if (!force && state.slots.has(id)) { afterAvailability(); return; }
+    const cached = state.slots.get(id);
+    if (!force && cached && (Date.now() - cached.time < CACHE_TTL_MS)) {
+      afterAvailability();
+      return;
+    }
 
     state.loading = true;
     renderTimes();
@@ -119,7 +124,7 @@
       const res = await fetch(`/api/availability?${params}`);
       if (!res.ok) throw new Error(`availability ${res.status}`);
       const data = await res.json();
-      state.slots.set(id, new Map(data.days.map((d) => [d.date, d.slots])));
+      state.slots.set(id, { time: Date.now(), days: new Map(data.days.map((d) => [d.date, d.slots])) });
     } catch (err) {
       console.error(err);
       state.loading = false;
@@ -346,8 +351,6 @@
     if (text("name").length < 2) errors.name = "Escribe tu nombre.";
     const digits = text("phone").replace(/\D/g, "").replace(/^57(?=3\d{9}$)/, "");
     if (!/^3\d{9}$/.test(digits)) errors.phone = "Escribe un celular válido, p. ej. 300 000 0000.";
-    if (text("neighborhood").length < 2) errors.neighborhood = "Escribe tu barrio.";
-    if (text("address").length < 5) errors.address = "Escribe tu dirección.";
     return errors;
   }
 
@@ -362,7 +365,7 @@
   async function onSubmit(event) {
     event.preventDefault();
     if (state.submitting) return;
-    ["service_id", "time", "name", "phone", "neighborhood", "address"].forEach(clearError);
+    ["service_id", "time", "name", "phone"].forEach(clearError);
     setMessage("");
 
     const errors = clientValidate();
@@ -389,8 +392,6 @@
       time: state.time,
       name: form.elements.name.value,
       phone: form.elements.phone.value,
-      neighborhood: form.elements.neighborhood.value,
-      address: form.elements.address.value,
       notes: form.elements.notes.value,
       turnstile_token: state.tsToken,
       form_token: state.formToken,
@@ -431,8 +432,6 @@
     if (state.date) lines.push(`• Fecha: ${formatDateLong(state.date)}`);
     if (state.time) lines.push(`• Hora: ${formatTime(state.time)}`);
     if (val("name")) lines.push(`• Nombre: ${val("name")}`);
-    if (val("neighborhood")) lines.push(`• Barrio: ${val("neighborhood")}`);
-    if (val("address")) lines.push(`• Dirección: ${val("address")}`);
     if (val("notes")) lines.push(`• Notas: ${val("notes")}`);
     lines.push("", "¿Me confirmas, por favor?");
     return `https://wa.me/${number}?text=${encodeURIComponent(lines.join("\n"))}`;
@@ -448,7 +447,7 @@
   }
 
   function resetForNewBooking() {
-    ["name", "phone", "neighborhood", "address", "notes"].forEach((n) => { form.elements[n].value = ""; });
+    ["name", "phone", "notes"].forEach((n) => { form.elements[n].value = ""; });
     state.time = null;
     state.formToken = newFormToken();
     ui.success.hidden = true;
@@ -487,7 +486,7 @@
     form.addEventListener("submit", onSubmit);
     form.querySelector("[data-new-booking]").addEventListener("click", resetForNewBooking);
     ui.retry.addEventListener("click", retryTurnstile);
-    ["name", "phone", "neighborhood", "address"].forEach((n) => form.elements[n].addEventListener("input", () => {
+    ["name", "phone"].forEach((n) => form.elements[n].addEventListener("input", () => {
       clearError(n);
       // El enlace de salida lleva los datos que ya escribió.
       if (!ui.notice.hidden) ui.whatsapp.href = whatsappSummaryUrl();
@@ -501,6 +500,13 @@
       if (service()?.category === cat) { document.getElementById("agendar").scrollIntoView(); return; }
       const firstOfCat = state.config.services.find((s) => s.category === cat);
       if (firstOfCat) selectService(firstOfCat.id, { scroll: true });
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && state.serviceId) {
+        state.slots.clear();
+        loadAvailability({ force: true });
+      }
     });
   }
 

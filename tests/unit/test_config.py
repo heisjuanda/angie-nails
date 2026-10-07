@@ -43,7 +43,7 @@ def test_last_slot_never_runs_past_midnight():
         for open_hhmm, close_hhmm in spans:
             last_start = to_minutes(close_hhmm) - config.SLOT_STEP_MIN
             for s in config.ALL_SERVICES:
-                assert last_start + s["duration"] + config.TRAVEL_BUFFER_MIN <= 24 * 60, (
+                assert last_start + s["duration"] <= 24 * 60, (
                     f"{s['id']} el día {weekday} ocupa después de medianoche"
                 )
 
@@ -53,7 +53,7 @@ def test_booking_limits_are_sane():
     assert config.MAX_ACTIVE_PER_PHONE_DAY == 1
 
     per_day = min(
-        (to_minutes(close) - to_minutes(open)) // (s["duration"] + config.TRAVEL_BUFFER_MIN)
+        (to_minutes(close) - to_minutes(open)) // s["duration"]
         for s in config.ALL_SERVICES for spans in config.BUSINESS_HOURS.values()
         for open, close in spans
     )

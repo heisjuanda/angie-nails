@@ -32,8 +32,6 @@ def booking_whatsapp_text(b: dict) -> str:
         f"• Fecha: {format_date_es(b['date'])}",
         f"• Hora: {format_time_es(b['time'])}",
         f"• Nombre: {b['name']}",
-        f"• Barrio: {b['neighborhood']}",
-        f"• Dirección: {b['address']}",
     ]
     if b.get("notes"):
         lines.append(f"• Notas: {b['notes']}")

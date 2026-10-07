@@ -60,8 +60,6 @@ def _record() -> dict:
         "date": date(2026, 10, 10),
         "time": "08:00",
         "name": "Clienta de Prueba",
-        "neighborhood": "San Fernando",
-        "address": "Carrera 34 # 5-20",
         "notes": "",
     }
 

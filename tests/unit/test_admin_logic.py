@@ -1,16 +1,22 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 from urllib.parse import unquote
 
 import pytest
 
 import admin_logic as al
+import availability
 import config
+
+_next_day = availability.now_local().date() + timedelta(days=2)
+while _next_day.weekday() == 6:
+    _next_day += timedelta(days=1)
+FUTURE_DATE = _next_day.isoformat()
 
 ROW = {
     "code": "AC-ABC23", "service_id": "lifting", "service_name": "Lifting de pestañas", "category": "pestanas",
-    "price": None, "duration_min": 90, "date": "2026-10-05", "start_min": 540, "end_min": 630,
-    "customer_name": "María José Pérez", "phone": "573001234567", "neighborhood": "Granada",
-    "address": "Calle 10 # 1-1", "notes": "", "status": "pending", "created_at": "2026-10-01 12:00:00", "expired": 0,
+    "price": None, "duration_min": 90, "date": FUTURE_DATE, "start_min": 540, "end_min": 630,
+    "customer_name": "María José Pérez", "phone": "573001234567",
+    "notes": "", "status": "pending", "created_at": "2026-10-01 12:00:00", "expired": 0,
 }
 
 
@@ -62,7 +68,7 @@ def test_parse_block_reason_truncated():
 
 
 def test_serialize_booking():
-    b = al.serialize_booking(ROW)
+    b = al.serialize_booking({**ROW, "date": "2026-10-05"})
     assert b["start"] == "09:00" and b["end"] == "10:30"
     assert b["start_label"] == "9:00 a. m."
     assert b["date_label"] == "lunes 5 oct"
@@ -105,8 +111,8 @@ def test_parse_edit_time_only():
     edit = al.parse_booking_edit({"time": "11:00"}, ROW)
     assert edit["start_min"] == 660
     assert edit["end_min"] == 750
-    assert edit["busy_until_min"] == 795
-    assert "service_id" not in edit and "neighborhood" not in edit
+    assert edit["busy_until_min"] == 750
+    assert "service_id" not in edit
 
 
 def test_parse_edit_service_only_keeps_the_time():
@@ -117,28 +123,15 @@ def test_parse_edit_service_only_keeps_the_time():
     assert edit["duration_min"] == config.DURACION_TRIPLE_X
     assert edit["start_min"] == 540                 # horario actual
     assert edit["end_min"] == 540 + config.DURACION_TRIPLE_X
-    assert edit["busy_until_min"] == 540 + config.DURACION_TRIPLE_X + config.TRAVEL_BUFFER_MIN
+    assert edit["busy_until_min"] == 540 + config.DURACION_TRIPLE_X
 
 
 def test_parse_edit_time_and_service_together():
     edit = al.parse_booking_edit({"time": "09:30", "service_id": "volumen"}, ROW)
     assert edit["start_min"] == 570
     assert edit["end_min"] == 570 + 90
-    assert edit["busy_until_min"] == 570 + 90 + config.TRAVEL_BUFFER_MIN
+    assert edit["busy_until_min"] == 570 + 90
     assert edit["service_name"] == "Volumen"
-
-
-def test_parse_edit_location_only():
-    edit = al.parse_booking_edit(
-        {"neighborhood": "El Peñón", "address": "Avenida 4 Oeste # 2-10"}, ROW)
-    assert edit == {"neighborhood": "El Peñón", "address": "Avenida 4 Oeste # 2-10"}
-
-
-def test_parse_edit_location_is_cleaned_and_truncated():
-    edit = al.parse_booking_edit(
-        {"neighborhood": "  El   Peñón  ", "address": "x" * 300}, ROW)
-    assert edit["neighborhood"] == "El Peñón"
-    assert len(edit["address"]) == 160
 
 
 @pytest.mark.parametrize("data", [
@@ -165,16 +158,6 @@ def test_parse_edit_rejects_unknown_service():
     assert e.value.status == 422
 
 
-@pytest.mark.parametrize("data", [
-    {"neighborhood": "x"},
-    {"address": "abc"},
-    {"neighborhood": "", "address": "Avenida 4 Oeste # 2-10"},
-])
-def test_parse_edit_rejects_short_location(data):
-    with pytest.raises(al.AdminError):
-        al.parse_booking_edit(data, ROW)
-
-
 def test_parse_edit_without_changes():
     with pytest.raises(al.AdminError) as e:
         al.parse_booking_edit({}, ROW)
@@ -187,14 +170,65 @@ def test_parse_edit_rejects_non_dict():
     assert e.value.status == 400
 
 
+def test_parse_edit_date_only():
+    new_day = _next_day + timedelta(days=1)
+    if new_day.weekday() == 6:
+        new_day += timedelta(days=1)
+    edit = al.parse_booking_edit({"date": new_day.isoformat()}, ROW)
+    assert edit["date"] == new_day.isoformat()
+    assert edit["start_min"] == 540
+    assert edit["end_min"] == 630
+
+
+def test_parse_edit_date_time_and_service():
+    new_day = _next_day + timedelta(days=1)
+    if new_day.weekday() == 6:
+        new_day += timedelta(days=1)
+    edit = al.parse_booking_edit({"date": new_day.isoformat(), "time": "14:00", "service_id": "acrilicas"}, ROW)
+    assert edit["date"] == new_day.isoformat()
+    assert edit["start_min"] == 840
+    assert edit["service_id"] == "acrilicas"
+
+
+def test_parse_edit_rejects_past_date():
+    yesterday = availability.now_local().date() - timedelta(days=1)
+    with pytest.raises(al.AdminError) as e:
+        al.parse_booking_edit({"date": yesterday.isoformat()}, ROW)
+    assert "pasado" in str(e.value)
+
+
+def test_parse_edit_rejects_past_time_today():
+    now = datetime(2026, 10, 7, 15, 30, tzinfo=config.TZ)
+    today_row = {**ROW, "date": "2026-10-07"}
+    with pytest.raises(al.AdminError) as e:
+        al.parse_booking_edit({"time": "09:00"}, today_row, now=now)
+    assert "ya pasó" in str(e.value)
+
+
+def test_parse_edit_accepts_future_time_today():
+    now = datetime(2026, 10, 7, 15, 30, tzinfo=config.TZ)
+    today_row = {**ROW, "date": "2026-10-07"}
+    edit = al.parse_booking_edit({"time": "16:00"}, today_row, now=now)
+    assert edit["start_min"] == 960
+
+
+def test_parse_edit_rejects_date_without_service():
+    sunday = _next_day
+    while sunday.weekday() != 6:
+        sunday += timedelta(days=1)
+    with pytest.raises(al.AdminError) as e:
+        al.parse_booking_edit({"date": sunday.isoformat()}, ROW)
+    assert "atención" in str(e.value)
+
+
 @pytest.mark.parametrize("data,ok", [
     ({"time": "11:00"}, True),
     ({"service_id": "volumen"}, True),
-    ({"neighborhood": "El Peñón"}, True),
-    ({"address": "Avenida 4 Oeste # 2-10"}, True),
+    ({"date": "2026-10-15"}, True),
     ({"status": "confirmed"}, False),
     ({}, False),
     ({"status": "confirmed", "time": "11:00"}, True),
+    ({"status": "confirmed", "date": "2026-10-15"}, True),
 ])
 def test_has_edit_fields(data, ok):
     assert al.has_edit_fields(data) is ok

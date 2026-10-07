@@ -13,7 +13,7 @@
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-  const state = { status: "", range: "upcoming", page: 1, total: 0, perPage: 0, bookings: [], refreshTimer: null, services: [], hours: {}, slotStep: 30, configLoaded: false, editing: null };
+  const state = { status: "", range: "upcoming", page: 1, total: 0, perPage: 0, bookings: [], refreshTimer: null, services: [], hours: {}, slotStep: 30, configLoaded: false, editing: null, editingBooking: null };
 
   function h(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
@@ -231,7 +231,6 @@
           `${b.customer_name} · `,
           h("a", { href: `tel:+${b.phone}`, text: phoneLabel(b.phone) }),
         ]),
-        h("p", { class: "booking-meta", text: `${b.neighborhood} · ${b.address}` }),
         b.notes ? h("p", { class: "booking-notes", text: `“${b.notes}”` }) : null,
         h("p", { class: "booking-code", text: `${b.code} · ${b.price_label}` }),
       ]),
@@ -259,7 +258,7 @@
     }
   }
 
-  /*  editar cita: horario, servicio y ubicación */
+  /*  editar cita: horario y servicio */
   function setEditMessage(msg) {
     const node = $("[data-edit-message]");
     node.textContent = msg || "";
@@ -269,20 +268,49 @@
   function closeEdit() {
     $("[data-edit-modal]").hidden = true;
     state.editing = null;
+    state.editingBooking = null;
   }
 
   function timeOptions(dateStr) {
+    if (!dateStr) return [];
+    const todayIso = iso(new Date());
+    if (dateStr < todayIso) return [];
     const spans = state.hours[String(parseDate(dateStr).getDay())] || [];
+    const isToday = dateStr === todayIso;
+    const now = new Date();
+    const nowMin = isToday ? (now.getHours() * 60 + now.getMinutes()) : -1;
     const times = [];
     for (const [open, close] of spans) {
-      for (let t = toMin(open); t < toMin(close); t += state.slotStep) times.push(toHhmm(t));
+      for (let t = toMin(open); t < toMin(close); t += state.slotStep) {
+        if (!isToday || t > nowMin) times.push(toHhmm(t));
+      }
     }
     return times;
+  }
+
+  function updateEditTimes(dateStr, preferredTime = null) {
+    const form = $("[data-edit-form]");
+    const timeSelect = form.elements.time;
+    const times = timeOptions(dateStr);
+    if (!times.length) {
+      timeSelect.replaceChildren(h("option", { value: "", text: "Sin horarios disponibles", disabled: true, selected: true }));
+      timeSelect.value = "";
+      return;
+    }
+    const hasPreferred = preferredTime && times.includes(preferredTime);
+    const targetValue = hasPreferred ? preferredTime : (times.includes(timeSelect.value) ? timeSelect.value : "");
+    const options = times.map((t) => h("option", { value: t, text: timeLabel(t) }));
+    if (!targetValue) {
+      options.unshift(h("option", { value: "", text: "Elige un horario", disabled: true, selected: true }));
+    }
+    timeSelect.replaceChildren(...options);
+    timeSelect.value = targetValue;
   }
 
   async function openEdit(b) {
     if (!state.configLoaded) await loadSiteConfig();
     state.editing = b.code;
+    state.editingBooking = b;
     const form = $("[data-edit-form]");
     $("[data-edit-customer]").textContent = `${b.customer_name} · ${phoneLabel(b.phone)}`;
     $("[data-edit-when]").textContent = `${b.date_label} · ${b.start_label}`;
@@ -290,13 +318,14 @@
     service.replaceChildren(...state.services.map((s) =>
       h("option", { value: s.id, text: `${s.name} · ${s.price_label}` })));
     service.value = b.service_id;
-    const time = form.elements.time;
-    const times = timeOptions(b.date);
-    if (!times.includes(b.start)) times.unshift(b.start);
-    time.replaceChildren(...times.map((t) => h("option", { value: t, text: timeLabel(t) })));
-    time.value = b.start;
-    form.elements.neighborhood.value = b.neighborhood;
-    form.elements.address.value = b.address;
+
+    const todayIso = iso(new Date());
+    const dateInput = form.elements.date;
+    dateInput.min = todayIso;
+    dateInput.max = iso(addDays(new Date(), 120));
+    dateInput.value = b.date >= todayIso ? b.date : todayIso;
+
+    updateEditTimes(dateInput.value, b.start);
     setEditMessage("");
     $("[data-edit-modal]").hidden = false;
   }
@@ -304,16 +333,28 @@
   async function onEditSubmit(e) {
     e.preventDefault();
     const form = e.currentTarget;
+    const dateVal = form.elements.date.value;
+    const timeVal = form.elements.time.value;
+    const serviceVal = form.elements.service_id.value;
+
+    if (!dateVal) {
+      setEditMessage("Elige una fecha válida.");
+      return;
+    }
+    if (!timeVal) {
+      setEditMessage("Elige un horario válido.");
+      return;
+    }
+
     const submit = form.querySelector("button[type=submit]");
     submit.disabled = true;
     try {
       await api(`/bookings/${encodeURIComponent(state.editing)}`, {
         method: "PATCH",
         body: {
-          time: form.elements.time.value,
-          service_id: form.elements.service_id.value,
-          neighborhood: form.elements.neighborhood.value,
-          address: form.elements.address.value,
+          date: dateVal,
+          time: timeVal,
+          service_id: serviceVal,
         },
       });
       closeEdit();
@@ -480,6 +521,13 @@
 
     $("[data-edit-cancel]").addEventListener("click", closeEdit);
     $("[data-edit-form]").addEventListener("submit", onEditSubmit);
+    const editDateInput = $("[data-edit-form] input[name=date]");
+    const onEditDateChange = () => {
+      const b = state.editingBooking;
+      updateEditTimes(editDateInput.value, b ? b.start : null);
+    };
+    editDateInput.addEventListener("change", onEditDateChange);
+    editDateInput.addEventListener("input", onEditDateChange);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !$("[data-edit-modal]").hidden) closeEdit();
     });

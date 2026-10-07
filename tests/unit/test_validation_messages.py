@@ -13,8 +13,6 @@ VALID = {
     "time": "11:00",
     "name": "  María   Pérez ",
     "phone": "+57 300 123 4567",
-    "neighborhood": "San Fernando",
-    "address": "Cra 34 # 5-20",
     "form_token": "a1b2c3d4e5f6a7b8c9d0",
 }
 
@@ -57,7 +55,7 @@ def test_helper_payload_is_valid_by_default():
 def test_invalid_booking_reports_each_field():
     with pytest.raises(ValidationError) as e:
         validate_booking({"service_id": "nope", "date": "x", "time": "25:00", "phone": "1"})
-    assert set(e.value.errors) >= {"service_id", "date", "time", "name", "phone", "neighborhood", "address"}
+    assert set(e.value.errors) >= {"service_id", "date", "time", "name", "phone"}
 
 
 def test_non_dict_rejected():
@@ -77,7 +75,7 @@ def test_spanish_formats():
 def test_whatsapp_link_is_encoded():
     text = booking_whatsapp_text({
         "code": "AC-ABCDE", "service_name": "Semipermanente", "date": date(2026, 9, 30),
-        "time": "11:00", "name": "Ana", "neighborhood": "Granada", "address": "Calle 1 # 2-3",
+        "time": "11:00", "name": "Ana",
     })
     url = whatsapp_url(text, number="573001112233")
     assert url.startswith("https://wa.me/573001112233?text=")

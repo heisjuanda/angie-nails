@@ -283,12 +283,7 @@ fieldset { border: 0; padding: 0; min-width: 0; }
 .step-num { display: block; font-size: 56px; line-height: 1; color: var(--accent); margin-bottom: 16px; }
 .step-title { font-size: 18px; font-weight: 500; margin-bottom: 10px; }
 .step .muted { max-width: 22em; margin: 0 auto; font-size: 16px; }
-.coverage {
-  display: table; margin: 48px auto 0; padding: 14px 26px;
-  border: 1px dashed var(--line-strong); border-radius: 999px;
-  font-size: 15px; text-align: center;
-}
-@media (max-width: 800px) { .steps { grid-template-columns: 1fr; } .coverage { border-radius: var(--radius); } }
+@media (max-width: 800px) { .steps { grid-template-columns: 1fr; } }
 
 /* - reserva */
 .booking { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: clamp(28px, 4vw, 48px); align-items: start; }

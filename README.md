@@ -1,6 +1,6 @@
 # AC Luxury Aesthetics
 
-Sitio web y agenda de citas a domicilio (uñas, cejas y pestañas) de Angélica Castrillón, en Cali.
+Sitio web y agenda de citas en el estudio (uñas, cejas y pestañas) de Angélica Castrillón, en Cali.
 
 - **Frontend:** HTML + CSS + JS sin frameworks ni build, en `public/`.
 - **Backend:** Python Workers de Cloudflare (`src/`), solo para `/api/*`.
@@ -64,12 +64,10 @@ Todo lo que falta definir está en **`src/config.py`**, arriba del archivo:
 | `DURACION_X` | Duración de los servicios en minutos (hoy 90 para todos). |
 | `DURACION_COMBO_X` / `DURACION_TRIPLE_X` | Duración de los combos de 2 y de 3 servicios. |
 | `HORA_INICIO_X` / `HORA_FIN_X` | Horario laboral: define cuándo se pueden **iniciar** citas. Una cita puede terminar después del cierre. Para horarios distintos por día o almuerzo, editar `BUSINESS_HOURS`. |
-| `COBERTURA_X` | Barrios que atiende. Vacío = cualquier barrio. |
-| `RECARGO_DOMICILIO_X` | Recargo de domicilio en COP. |
 
 El WhatsApp de Angélica está en `WHATSAPP` (`57` + celular, solo dígitos).
 
-Otros ajustes de agenda en el mismo archivo: `TRAVEL_BUFFER_MIN` (traslado entre citas, 45 min), `SLOT_STEP_MIN`,
+Otros ajustes de agenda en el mismo archivo: `SLOT_STEP_MIN`,
 `MIN_NOTICE_HOURS`, `BOOKING_WINDOW_DAYS`, `PENDING_TTL_HOURS`.
 
 `PENDING_TTL_HOURS` (12 h) es el plazo que tiene Angélica para responder, y solo aplica a **citas próximas**: una
@@ -150,8 +148,8 @@ BUNDLES = [
 - La duración del combo es **menor que la suma** de sus servicios: Angélica trabaja las cejas o
   las pestañas mientras seca las uñas. `DURACION_COMBO_X` (150) y `DURACION_TRIPLE_X` (210) son
   valores provisionales que hay que medir.
-- Un combo ocupa más agenda que un servicio simple: 150 + 45 = 195 min, o sea **3 combos por día**
-  en vez de las 4 citas simples que caben hoy.
+- Un combo ocupa más agenda que un servicio simple: 150 min, o sea **4 combos por día**
+  en vez de las 7 citas simples que caben hoy.
 
 ## Cómo funciona la agenda
 
@@ -159,8 +157,8 @@ BUNDLES = [
 2. `GET /api/availability?service=<id>&from=YYYY-MM-DD&days=N` calcula la grilla de horarios por día.
    La grilla cubre todo el horario laboral (de apertura a cierre, de 30 en 30 min) sin importar la
    duración del servicio: el cierre es el último **inicio** posible y la cita puede terminar después
-   de él. Cada cita ocupa `[inicio, fin + traslado)`; un horario se ofrece solo si su intervalo no
-   choca con otra cita o bloqueo y respeta la anticipación mínima.
+   de él. Cada cita ocupa `[inicio, fin)`; un horario se ofrece solo si su intervalo no choca con
+   otra cita o bloqueo y respeta la anticipación mínima.
 3. `POST /api/bookings` valida Turnstile y los datos, y guarda la cita como **pendiente** con un código (`AC-XXXXX`).
    La inserción es una única sentencia condicional (`INSERT … SELECT … WHERE NOT EXISTS`), por lo que dos personas que
    reservan el mismo horario a la vez no pueden quedar ambas registradas.
@@ -336,7 +334,7 @@ npm run test:unit    # solo lógica pura (< 1 s)
 npm run test:smoke   # contra producción, sin crear datos
 ```
 
-- **Unitarias** (`tests/unit`): horarios, traslado, validación, fechas, sesión HMAC, transiciones de estado y
+- **Unitarias** (`tests/unit`): horarios, validación, fechas, sesión HMAC, transiciones de estado y
   bloqueos, invariantes de la carta de servicios, y qué restricción única falló al insertar.
 - **Integración** (`tests/integration`): levantan **dos Workers reales** con `wrangler dev`, cada uno con su propia
   D1 y sus propios secretos. Uno usa el Turnstile de prueba que aprueba y el otro el que rechaza. Cubre:

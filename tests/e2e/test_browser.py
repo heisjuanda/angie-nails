@@ -87,8 +87,6 @@ def pick(page, day, time, service_name):
 def fill_customer(page, name="Clienta Navegador", phone="311 222 3344"):
     page.fill("input[name=name]", name)
     page.fill("input[name=phone]", phone)
-    page.fill("input[name=neighborhood]", "El Peñón")
-    page.fill("input[name=address]", "Avenida 4 Oeste # 2-10 apto 301")
 
 
 def wait_js(page, expression: str, timeout: float = 20):
@@ -162,7 +160,7 @@ def test_booking_says_so_when_turnstile_script_is_blocked(mobile, server, free_d
     href = page.get_attribute("[data-ts-whatsapp]", "href")
     assert href.startswith("https://wa.me/")
     resumen = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(href).query)["text"][0])
-    assert "Semipermanente" in resumen and "El Peñón" in resumen and "Avenida 4 Oeste" in resumen
+    assert "Semipermanente" in resumen
 
     # 3. El submit explica, y no se crea ninguna cita: el servidor sigue exigiendo Turnstile.
     before = server.sql("SELECT COUNT(*) AS n FROM bookings")[0]["n"]
@@ -212,7 +210,7 @@ def test_form_errors_are_shown_without_calling_api(mobile):
     page.on("request", lambda r: "/api/bookings" in r.url and requests.append(r))
     page.click("[data-submit]")
     visible = page.locator(".field-error:not([hidden])")
-    assert visible.count() >= 5
+    assert visible.count() >= 4
     page.fill("input[name=phone]", "123")
     page.click("[data-submit]")
     assert "celular válido" in page.text_content("[data-error=phone]")
@@ -362,15 +360,14 @@ def test_admin_confirms_and_cancels_bookings(desktop, server, free_day):
     assert desktop.errors == []
 
 
-#  Angélica edita citas: horario, servicio y ubicación
+#  Angélica edita citas: horario y servicio
 
-def test_admin_edits_time_service_and_location(desktop, server, free_day):
+def test_admin_edits_time_and_service(desktop, server, free_day):
     import httpx
     r = httpx.post(
         f"{server.base_url}/api/bookings",
         json=booking_payload(free_day, "08:00", name="Paola Ríos",
-                             phone=PHONES["Paola Ríos"],
-                             neighborhood="San Fernando", address="Carrera 34 # 5-20"),
+                             phone=PHONES["Paola Ríos"]),
         timeout=30)
     assert r.status_code == 201, r.text
     code = r.json()["code"]
@@ -390,19 +387,16 @@ def test_admin_edits_time_service_and_location(desktop, server, free_day):
 
     page.select_option("[data-edit-form] select[name=service_id]", "volumen")
     page.select_option("[data-edit-form] select[name=time]", "11:00")
-    page.fill("[data-edit-form] input[name=neighborhood]", "El Peñón")
-    page.fill("[data-edit-form] input[name=address]", "Avenida 4 Oeste # 2-10")
     page.click("[data-edit-form] button[type=submit]")
     modal.wait_for(state="hidden")
 
     row = server.sql(
         f"SELECT service_id, service_name, start_min, end_min, busy_until_min, "
-        f"neighborhood, address, customer_name, phone FROM bookings WHERE code = '{code}'"
+        f"customer_name, phone FROM bookings WHERE code = '{code}'"
     )[0]
     assert row == {
         "service_id": "volumen", "service_name": "Volumen",
-        "start_min": 660, "end_min": 750, "busy_until_min": 795,
-        "neighborhood": "El Peñón", "address": "Avenida 4 Oeste # 2-10",
+        "start_min": 660, "end_min": 750, "busy_until_min": 750,
         "customer_name": "Paola Ríos", "phone": "573001110001",
     }
 
@@ -421,6 +415,40 @@ def test_admin_edits_time_service_and_location(desktop, server, free_day):
 
     assert slot("08:00") is True
     assert slot("11:00") is False
+    assert desktop.errors == [] and desktop.http_errors == []
+
+
+def test_admin_edits_date_and_time(desktop, server, free_day, _day_pool):
+    import httpx
+    other_day = next(_day_pool)
+    r = httpx.post(
+        f"{server.base_url}/api/bookings",
+        json=booking_payload(free_day, "08:00", name="Paola Ríos",
+                             phone=PHONES["Paola Ríos"]),
+        timeout=30)
+    assert r.status_code == 201, r.text
+    code = r.json()["code"]
+
+    page = desktop.page
+    admin_login(page, server.admin_password, server.totp_secret)
+    card = page.locator(f".booking-card[data-code='{code}']")
+    card.wait_for()
+    card.locator("[data-action=edit]").click()
+
+    modal = page.locator("[data-edit-modal]")
+    modal.wait_for(state="visible")
+
+    page.fill("[data-edit-form] input[name=date]", other_day.isoformat())
+    page.wait_for_timeout(200)
+    page.select_option("[data-edit-form] select[name=time]", "10:00")
+    page.click("[data-edit-form] button[type=submit]")
+    modal.wait_for(state="hidden")
+
+    row = server.sql(
+        f"SELECT date, start_min FROM bookings WHERE code = '{code}'"
+    )[0]
+    assert row["date"] == other_day.isoformat()
+    assert row["start_min"] == 600
     assert desktop.errors == [] and desktop.http_errors == []
 
 

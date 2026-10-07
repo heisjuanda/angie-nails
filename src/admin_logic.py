@@ -6,7 +6,6 @@ from datetime import date
 import availability
 import config
 import messages
-from validation import MAX_LEN
 
 # Cambios de estado permitidos para una cita.
 TRANSITIONS = {
@@ -60,12 +59,10 @@ def parse_block(data: dict) -> dict:
     return {"date": day, "start_min": start, "end_min": end, "reason": reason}
 
 
-#  edición de citas: solo horario, servicio y ubicación.
+#  edición de citas: horario, servicio y fecha.
 
 EDITABLE_STATUSES = {"pending", "confirmed"}
-EDIT_FIELDS = ("time", "service_id", "neighborhood", "address")
-_LOCATION_MIN = {"neighborhood": 2, "address": 5}
-_LOCATION_MSG = {"neighborhood": "Escribe el barrio.", "address": "Escribe la dirección."}
+EDIT_FIELDS = ("time", "service_id", "date")
 
 
 def has_edit_fields(data) -> bool:
@@ -83,13 +80,32 @@ def valid_start_minutes(day: date) -> set[int]:
     return minutes
 
 
-def parse_booking_edit(data: dict, row: dict) -> dict:
+def parse_booking_edit(data: dict, row: dict, now=None) -> dict:
     if not isinstance(data, dict):
         raise AdminError("Solicitud inválida.", 400)
     if "customer_name" in data or "phone" in data:
         raise AdminError("El nombre y el teléfono no se pueden cambiar.")
 
+    if now is None:
+        now = availability.now_local()
+    today = now.date()
+    now_min = now.hour * 60 + now.minute
+
     out: dict = {}
+    current_date = date.fromisoformat(row["date"])
+    target_date = current_date
+
+    if "date" in data:
+        try:
+            target_date = date.fromisoformat(str(data.get("date") or ""))
+        except ValueError:
+            raise AdminError("Elige una fecha válida.")
+        if target_date < today:
+            raise AdminError("La fecha no puede ser en el pasado.")
+        if (target_date - today).days > 120:
+            raise AdminError("La fecha está fuera del rango permitido.")
+        out["date"] = target_date.isoformat()
+
     start_min = int(row["start_min"])
     duration = int(row["duration_min"])
 
@@ -98,9 +114,16 @@ def parse_booking_edit(data: dict, row: dict) -> dict:
         if not _TIME_RE.match(time):
             raise AdminError("Elige una hora válida.")
         start_min = availability.to_minutes(time)
-        if start_min not in valid_start_minutes(date.fromisoformat(row["date"])):
-            raise AdminError("Ese horario queda fuera del horario de atención.")
         out["start_min"] = start_min
+
+    valid_slots = valid_start_minutes(target_date)
+    if not valid_slots:
+        raise AdminError("No hay atención en esa fecha.")
+    if start_min not in valid_slots:
+        raise AdminError("Ese horario queda fuera del horario de atención.")
+
+    if target_date < today or (target_date == today and start_min <= now_min):
+        raise AdminError("Ese horario ya pasó.")
 
     if "service_id" in data:
         service = config.SERVICES_BY_ID.get(str(data.get("service_id") or ""))
@@ -115,17 +138,10 @@ def parse_booking_edit(data: dict, row: dict) -> dict:
         })
         duration = service["duration"]
 
-    if "start_min" in out or "duration_min" in out:
+    if "start_min" in out or "duration_min" in out or "date" in out:
         out["start_min"] = start_min
         out["end_min"] = start_min + duration
-        out["busy_until_min"] = start_min + duration + config.TRAVEL_BUFFER_MIN
-
-    for field in ("neighborhood", "address"):
-        if field in data:
-            text = " ".join(str(data.get(field) or "").split())[:MAX_LEN[field]]
-            if len(text) < _LOCATION_MIN[field]:
-                raise AdminError(_LOCATION_MSG[field])
-            out[field] = text
+        out["busy_until_min"] = start_min + duration
 
     if not out:
         raise AdminError("Nada que cambiar.", 400)
@@ -147,8 +163,6 @@ def serialize_booking(row: dict) -> dict:
         "start_label": messages.format_time_es(availability.to_hhmm(int(row["start_min"]))),
         "customer_name": row["customer_name"],
         "phone": row["phone"],
-        "neighborhood": row["neighborhood"],
-        "address": row["address"],
         "notes": row["notes"],
         "status": row["status"],
         "status_label": STATUS_LABEL.get(row["status"], row["status"]),
@@ -164,7 +178,7 @@ def customer_message(b: dict) -> str:
     if b["status"] == "confirmed":
         return (
             f"Hola {first} ✨ Te confirmo tu cita de {b['service_name']} {when} "
-            f"en {b['address']} ({b['neighborhood']}). Código {b['code']}. ¡Nos vemos! — Angélica"
+            f"en el estudio. Código {b['code']}. ¡Nos vemos! — Angélica"
         )
     if b["status"] == "cancelled":
         return (

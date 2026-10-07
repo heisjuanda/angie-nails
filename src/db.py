@@ -72,7 +72,7 @@ async def insert_booking_if_free(db, b: dict) -> bool:
     ).bind(
         b["code"], b["service_id"], b["service_name"], b["category"], b["price"], b["duration"],
         b["date"].isoformat(), b["start_min"], b["end_min"], b["busy_until_min"],
-        b["name"], b["phone"], b["neighborhood"], b["address"], b["notes"], b["form_token"],
+        b["name"], b["phone"], b.get("neighborhood", ""), b.get("address", ""), b["notes"], b["form_token"],
     ).run()
     return int(res.meta.changes) == 1
 
@@ -161,26 +161,32 @@ async def update_booking_details(db, code: str, edit: dict) -> bool:
     sets = ["updated_at = datetime('now')"]
     params: list = []
     for col in ("service_id", "service_name", "category", "price", "duration_min",
-                "start_min", "end_min", "busy_until_min", "neighborhood", "address"):
+                "date", "start_min", "end_min", "busy_until_min"):
         if col in edit:
             params.append(edit[col])
             sets.append(f"{col} = ?{len(params)}")
 
     guard = ""
     if "busy_until_min" in edit:
+        target_date = edit.get("date")
+        if target_date:
+            params.append(target_date)
+            date_cond = f"?{len(params)}"
+        else:
+            date_cond = "bookings.date"
         params.append(edit["start_min"])
         params.append(edit["busy_until_min"])
         start_p, end_p = len(params) - 1, len(params)
         guard = f"""
           AND NOT EXISTS (
             SELECT 1 FROM bookings o
-             WHERE o.id != bookings.id AND o.date = bookings.date
+             WHERE o.id != bookings.id AND o.date = {date_cond}
                AND o.start_min < ?{end_p} AND o.busy_until_min > ?{start_p}
                AND {_active('o')}
           )
           AND NOT EXISTS (
             SELECT 1 FROM blocked_slots
-             WHERE date = bookings.date AND start_min < ?{end_p} AND end_min > ?{start_p}
+             WHERE date = {date_cond} AND start_min < ?{end_p} AND end_min > ?{start_p}
           )"""
 
     params.append(code)

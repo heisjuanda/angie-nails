@@ -90,8 +90,6 @@ def _record() -> dict:
         "date": date.today() + timedelta(days=2),
         "time": "10:00",
         "name": "Clienta de Prueba",
-        "neighborhood": "San Fernando",
-        "address": "Carrera 34 # 5-20",
         "notes": "aviso de prueba",
     }
 

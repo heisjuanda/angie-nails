@@ -21,8 +21,6 @@ def booking_payload(day, time="08:00", service="semipermanente", **overrides) ->
         "time": time,
         "name": "Clienta de Prueba",
         "phone": random_phone(),
-        "neighborhood": "San Fernando",
-        "address": "Carrera 34 # 5-20",
         "notes": "",
         "turnstile_token": "XXXX.DUMMY.TOKEN.XXXX",
         "form_token": form_token(),

@@ -28,10 +28,6 @@ def get_config(env):
             "slot_step_min": config.SLOT_STEP_MIN,
             "window": {"first": first.isoformat(), "last": last.isoformat()},
             "whatsapp": config.WHATSAPP,
-            "coverage": config.COBERTURA_X,
-            "travel_fee_label": (
-                None if config.RECARGO_DOMICILIO_X is None else messages.format_price(config.RECARGO_DOMICILIO_X)
-            ),
             "turnstile_site_key": getattr(env, "TURNSTILE_SITE_KEY", None),
         },
         headers={"cache-control": "public, max-age=300"},
@@ -90,8 +86,6 @@ def replay_response(row):
         "date": date.fromisoformat(row["date"]),
         "time": availability.to_hhmm(row["start_min"]),
         "name": row["customer_name"],
-        "neighborhood": row["neighborhood"],
-        "address": row["address"],
         "notes": row["notes"],
     }
     service = {"name": row["service_name"], "price": row["price"]}
@@ -152,7 +146,7 @@ async def create_booking(env, request):
         "duration": service["duration"],
         "start_min": start,
         "end_min": start + service["duration"],
-        "busy_until_min": start + service["duration"] + config.TRAVEL_BUFFER_MIN,
+        "busy_until_min": start + service["duration"],
     }
 
     inserted = False

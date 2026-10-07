@@ -3,7 +3,7 @@ from datetime import date
 
 import config
 
-MAX_LEN = {"name": 80, "neighborhood": 80, "address": 160, "notes": 500}
+MAX_LEN = {"name": 80, "notes": 500}
 
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _FORM_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
@@ -60,16 +60,6 @@ def validate_booking(data: dict) -> dict:
     out["phone"] = normalize_phone(str(data.get("phone", "")))
     if not out["phone"]:
         errors["phone"] = "Escribe un celular válido, p. ej. 300 000 0000."
-
-    out["neighborhood"] = _clean(data.get("neighborhood"), "neighborhood")
-    if len(out["neighborhood"]) < 2:
-        errors["neighborhood"] = "Escribe tu barrio."
-    elif config.COBERTURA_X and out["neighborhood"].lower() not in {b.lower() for b in config.COBERTURA_X}:
-        errors["neighborhood"] = "Por ahora no tenemos cobertura en ese barrio."
-
-    out["address"] = _clean(data.get("address"), "address")
-    if len(out["address"]) < 5:
-        errors["address"] = "Escribe tu dirección."
 
     out["notes"] = _clean(data.get("notes"), "notes")
 

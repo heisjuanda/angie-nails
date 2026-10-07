@@ -99,7 +99,7 @@ def test_availability_bad_params(api, params):
 
 #  booking
 
-def test_booking_happy_path_and_travel_buffer(api, free_day):
+def test_booking_happy_path_and_occupies_its_slot(api, free_day):
     r = api.post("/api/bookings", json=booking_payload(free_day, "08:00"))
     assert r.status_code == 201, r.text
     body = r.json()
@@ -109,20 +109,20 @@ def test_booking_happy_path_and_travel_buffer(api, free_day):
     assert body["summary"]["price"] == "$ X"
     text = unquote(body["whatsapp_url"])
     assert body["whatsapp_url"].startswith(f"https://wa.me/{config.WHATSAPP}?text=")
-    assert body["code"] in text and "Semipermanente" in text and "San Fernando" in text
+    assert body["code"] in text and "Semipermanente" in text
 
-    # 08:00 + 90 min + 45 de traslado = ocupado hasta 10:15.
+    # 08:00 + 90 min = ocupado hasta 09:30.
     slots = slots_of(api, free_day)
-    assert not any(slots[t] for t in ["08:00", "08:30", "09:00", "09:30", "10:00"])
-    assert slots["10:30"]
+    assert not any(slots[t] for t in ["08:00", "08:30", "09:00"])
+    assert slots["09:30"]
 
-    # Mismo horario y un horario dentro del traslado → 409.
+    # Mismo horario → 409.
     assert api.post("/api/bookings", json=booking_payload(free_day, "08:00")).status_code == 409
-    assert api.post("/api/bookings", json=booking_payload(free_day, "10:00")).status_code == 409
-    # Justo después del traslado → se puede.
-    assert api.post("/api/bookings", json=booking_payload(free_day, "10:30")).status_code == 201
-    # La nueva cita de 10:30 ocupa hasta 12:45, así que 12:00 ya no se ofrece.
-    assert not slots_of(api, free_day)["12:00"]
+    # Justo después → se puede.
+    assert api.post("/api/bookings", json=booking_payload(free_day, "09:30")).status_code == 201
+    # La nueva cita de 09:30 ocupa hasta 11:00.
+    assert not slots_of(api, free_day)["10:30"]
+    assert slots_of(api, free_day)["11:00"]
 
 
 def test_combo_books_as_one_slot_and_blocks_its_own_duration(api, server, free_day):
@@ -142,14 +142,12 @@ def test_combo_books_as_one_slot_and_blocks_its_own_duration(api, server, free_d
     assert row["service_name"] == "Combo Uñas + Cejas"
     assert row["duration_min"] == config.DURACION_COMBO_X
     assert row["end_min"] == 480 + config.DURACION_COMBO_X
-    assert row["busy_until_min"] == 480 + config.DURACION_COMBO_X + config.TRAVEL_BUFFER_MIN
+    assert row["busy_until_min"] == 480 + config.DURACION_COMBO_X
 
-    # 08:00 + 150 + 45 = ocupado hasta 11:15; el primer hueco libre es 11:30.
+    # 08:00 + 150 = ocupado hasta 10:30; el primer hueco libre es 10:30.
     slots = slots_of(api, free_day, service="combo-unas-cejas")
-    assert not any(slots[t] for t in ["08:00", "09:00", "10:00", "11:00"])
-    assert slots["11:30"]
-    # Y un servicio simple tampoco se encaja en lo que queda del combo.
-    assert not slots_of(api, free_day)["11:00"]
+    assert not any(slots[t] for t in ["08:00", "08:30", "09:00", "09:30", "10:00"])
+    assert slots["10:30"]
 
 
 def test_long_combo_offers_slots_until_closing_and_blocks_them(api, free_day):
@@ -165,12 +163,15 @@ def test_long_combo_offers_slots_until_closing_and_blocks_them(api, free_day):
     assert r.status_code == 201, r.text
 
     slots = slots_of(api, free_day, service="combo-triple")
-    assert not any(slots[t] for t in ["10:00", "14:00", "15:00", "16:00", "17:00", "17:30"])
+    assert not any(slots[t] for t in ["11:00", "12:00", "14:00", "15:00", "16:00", "17:00"])
     assert slots["09:30"]
+    assert slots["10:30"]
+    assert slots["17:30"]
 
     simple = slots_of(api, free_day)
     assert simple["11:30"]
-    assert not simple["12:00"]
+    assert simple["12:30"]
+    assert not simple["13:00"]
 
 
 def test_concurrent_bookings_same_slot_only_one_wins(server, free_day):
@@ -198,14 +199,13 @@ def test_validation_errors_are_reported_per_field(api):
     r = api.post("/api/bookings", json={"turnstile_token": "t", "service_id": "x", "phone": "123"})
     assert r.status_code == 422
     fields = r.json()["fields"]
-    assert set(fields) >= {"service_id", "date", "time", "name", "phone", "neighborhood", "address"}
+    assert set(fields) >= {"service_id", "date", "time", "name", "phone"}
 
 
 @pytest.mark.parametrize("override", [
     {"phone": "6023334455"},
     {"phone": "+1 415 555 0000"},
     {"name": "A"},
-    {"address": "x"},
     {"time": "8:00"},
     {"time": "25:00"},
     {"date": "2026-02-30"},
@@ -275,7 +275,7 @@ def test_booking_data_is_stored_normalized(server, api, free_day):
     assert row["phone"] == "573105551234"
     assert row["notes"] == "<script>alert(1)</script> diseño francés"
     assert row["status"] == "pending"
-    assert row["busy_until_min"] == 9 * 60 + config.DURACION_X + config.TRAVEL_BUFFER_MIN
+    assert row["busy_until_min"] == 9 * 60 + config.DURACION_X
 
 
 #  idempotencia

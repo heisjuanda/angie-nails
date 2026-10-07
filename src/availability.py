@@ -32,13 +32,8 @@ def day_slots(
     now: datetime,
     hours: dict[int, list[tuple[str, str]]] | None = None,
     step: int = config.SLOT_STEP_MIN,
-    buffer: int = config.TRAVEL_BUFFER_MIN,
     min_notice_hours: int = config.MIN_NOTICE_HOURS,
 ) -> list[dict]:
-    """
-    busy: intervalos ya ocupados (inicio, fin + desplazamiento), incluyendo
-          citas activas y bloqueos manuales.
-    """
     hours = config.BUSINESS_HOURS if hours is None else hours
     earliest = now + timedelta(hours=min_notice_hours)
     slots = []
@@ -47,7 +42,7 @@ def day_slots(
         start = open_min
         while start < close_min:
             slot_dt = datetime.combine(day, datetime.min.time(), config.TZ) + timedelta(minutes=start)
-            taken = any(overlaps(start, start + duration + buffer, b0, b1) for b0, b1 in busy)
+            taken = any(overlaps(start, start + duration, b0, b1) for b0, b1 in busy)
             slots.append({
                 "time": to_hhmm(start),
                 "available": not taken and slot_dt >= earliest,
