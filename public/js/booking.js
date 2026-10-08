@@ -24,6 +24,8 @@
 
   const ui = {
     categories: q("[data-service-categories]"),
+    catHint: form.querySelector("[data-cat-swipe-hint]"),
+    catWrap: form.querySelector(".service-categories-wrap"),
     services: q("[data-service-options]"),
     strip: q("[data-date-strip]"),
     prev: q("[data-date-prev]"),
@@ -100,6 +102,9 @@
         const active = btn.dataset.cat === catId;
         btn.classList.toggle("is-active", active);
         btn.setAttribute("aria-selected", String(active));
+        if (active) {
+          btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+        }
       });
     }
     if (ui.services) {
@@ -109,24 +114,64 @@
     }
   }
 
+  function updateCategoryScrollState() {
+    if (!ui.categories || ui.categories.clientWidth <= 0) return;
+    const { scrollLeft, scrollWidth, clientWidth } = ui.categories;
+    const maxScroll = Math.round(scrollWidth - clientWidth);
+    const hasOverflow = maxScroll > 12;
+    const canScrollRight = hasOverflow && Math.round(scrollLeft) < maxScroll - 12;
+    const canScrollLeft = hasOverflow && Math.round(scrollLeft) > 12;
+
+    const wrap = ui.catWrap || ui.categories.closest(".service-categories-wrap");
+    if (wrap) {
+      wrap.classList.toggle("can-scroll-right", canScrollRight);
+      wrap.classList.toggle("can-scroll-left", canScrollLeft);
+    }
+    const hint = ui.catHint || form.querySelector("[data-cat-swipe-hint]");
+    if (hint) {
+      hint.hidden = !canScrollRight;
+      hint.classList.toggle("is-visible", canScrollRight);
+    }
+  }
+
+  const CAT_ICONS = {
+    combos: '<svg class="icon icon-cat" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/><path d="M19 2l.8 2.2L22 5l-2.2.8L19 8l-.8-2.2L16 5l2.2-.8z"/></svg>',
+    unas: '<svg class="icon icon-cat" viewBox="0 0 24 24" aria-hidden="true"><rect x="10" y="3" width="4" height="6.5" rx="1"/><rect x="6" y="9.5" width="12" height="11.5" rx="2.5"/><path d="M9.5 13.5v4"/></svg>',
+    cejas: '<svg class="icon icon-cat" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11c3.5-5 9.5-6 18-2.5" stroke-width="2.2" stroke-linecap="round"/><path d="M5 17c2.5-2.5 5-3.5 7-3.5s4.5 1 7 3.5"/></svg>',
+    pestanas: '<svg class="icon icon-cat" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11c2.5 4 14.5 4 17 0"/><path d="M5.5 13.5l-2 3M9 14.5l-1 3.5M12 14.8v3.7M15 14.5l1 3.5M18.5 13.5l2 3"/></svg>',
+  };
+
+  function renderCatIcon(catId) {
+    const raw = CAT_ICONS[catId];
+    if (!raw) return null;
+    const t = document.createElement("template");
+    t.innerHTML = raw;
+    return t.content.firstElementChild;
+  }
+
   function renderCategories() {
     if (!ui.categories || !state.config?.categories) return;
     ui.categories.replaceChildren(...state.config.categories.map((cat) => {
       const count = state.config.services.filter((s) => s.category === cat.id).length;
       const isActive = cat.id === state.category;
+      const icon = renderCatIcon(cat.id);
+      const children = [];
+      if (icon) children.push(icon);
+      children.push(
+        h("span", { text: cat.name }),
+        h("span", { class: "service-cat-count", text: `(${count})` })
+      );
       const btn = h("button", {
         class: `service-cat-btn${isActive ? " is-active" : ""}`,
         type: "button",
         role: "tab",
         "aria-selected": String(isActive),
         "data-cat": cat.id,
-      }, [
-        h("span", { text: cat.name }),
-        h("span", { class: "service-cat-count", text: `(${count})` }),
-      ]);
+      }, children);
       btn.addEventListener("click", () => setCategory(cat.id));
       return btn;
     }));
+    requestAnimationFrame(updateCategoryScrollState);
   }
 
   function renderServices() {
@@ -564,6 +609,16 @@
 
     ui.prev.addEventListener("click", () => { state.page -= 1; renderDates(); });
     ui.next.addEventListener("click", () => { state.page += 1; renderDates(); });
+    if (ui.categories) {
+      ui.categories.addEventListener("scroll", updateCategoryScrollState, { passive: true });
+      if ("ResizeObserver" in window) {
+        new ResizeObserver(updateCategoryScrollState).observe(ui.categories);
+      }
+      window.addEventListener("resize", updateCategoryScrollState, { passive: true });
+      if (document.fonts?.ready) {
+        document.fonts.ready.then(updateCategoryScrollState);
+      }
+    }
     mobile.addEventListener("change", () => {
       if (state.date) state.page = Math.floor(state.dates.indexOf(state.date) / pageSize());
       renderDates();

@@ -44,6 +44,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html {
   scroll-behavior: smooth;
   scroll-padding-top: calc(var(--header-h) + 12px);
@@ -342,8 +346,9 @@ fieldset {
 .chip {
   display: inline-flex;
   align-items: center;
+  gap: 7px;
   min-height: 42px;
-  padding: 0 22px;
+  padding: 0 20px;
   border-radius: 999px;
   border: 1px solid var(--line-strong);
   background: transparent;
@@ -351,7 +356,15 @@ fieldset {
   letter-spacing: .16em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background-color .2s, color .2s;
+  transition: background-color .2s, color .2s, border-color .2s;
+}
+
+.chip .icon {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  flex-shrink: 0;
 }
 
 .chip:hover {
@@ -1245,12 +1258,94 @@ fieldset {
 }
 
 .step-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
   font-size: 14px;
   font-weight: 500;
   letter-spacing: .24em;
   text-transform: uppercase;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   padding: 0;
+}
+
+.step-swipe-hint {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: none;
+  color: var(--accent);
+}
+
+.step-swipe-hint.is-visible:not([hidden]) {
+  display: inline-flex;
+}
+
+.step-swipe-hint[hidden] {
+  display: none !important;
+}
+
+.step-swipe-hint .icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+  animation: hintNudge 1.6s ease-in-out infinite;
+}
+
+@keyframes hintNudge {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+
+.service-categories-wrap {
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.service-categories-wrap .service-categories {
+  margin-bottom: 0;
+}
+
+.service-categories-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 6px;
+  width: 44px;
+  background: linear-gradient(to right, transparent, var(--sand));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+.service-categories-wrap.can-scroll-right::after {
+  opacity: 1;
+}
+
+.service-categories-wrap::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 6px;
+  width: 32px;
+  background: linear-gradient(to left, transparent, var(--sand));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+.service-categories-wrap.can-scroll-left::before {
+  opacity: 1;
 }
 
 .service-categories {
@@ -1271,7 +1366,7 @@ fieldset {
 .service-cat-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   padding: 10px 18px;
   background: var(--white);
   border: 1px solid var(--line);
@@ -1283,6 +1378,14 @@ fieldset {
   white-space: nowrap;
   transition: border-color .2s, background-color .2s, color .2s;
   user-select: none;
+}
+
+.service-cat-btn .icon {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  flex-shrink: 0;
 }
 
 .service-cat-btn:hover {
@@ -1557,7 +1660,7 @@ fieldset {
 }
 
 .field textarea {
-  resize: vertical;
+  resize: none;
   min-height: 56px;
 }
 
@@ -1588,24 +1691,24 @@ fieldset {
 .summary {
   position: sticky;
   top: calc(var(--header-h) + 24px);
-  padding: 34px 32px;
+  padding: 24px 22px;
   background: var(--sand);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
 }
 
 .summary-title {
-  font-size: 34px;
-  margin-bottom: 18px;
+  font-size: 26px;
+  margin-bottom: 14px;
 }
 
 .summary-list div {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 15px 0;
+  padding: 10px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 16px;
+  font-size: 14.5px;
 }
 
 .summary-list dt {
@@ -1619,13 +1722,14 @@ fieldset {
 
 .summary-subtext {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink-soft);
   font-weight: 300;
+  margin-top: 1px;
 }
 
 .turnstile {
-  margin-top: 22px;
+  margin-top: 16px;
 }
 
 .turnstile:empty {
@@ -1633,8 +1737,8 @@ fieldset {
 }
 
 .ts-notice {
-  margin-top: 18px;
-  padding: 16px 18px;
+  margin-top: 14px;
+  padding: 14px 16px;
   background: #f7efeb;
   border: 1px solid var(--nude-3);
   border-left: 3px solid var(--accent);
@@ -1642,21 +1746,21 @@ fieldset {
 }
 
 .ts-notice-text {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--ink-soft);
 }
 
 .ts-notice-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .summary .ts-notice .btn {
   margin-top: 0;
-  padding: 0 20px;
-  letter-spacing: .1em;
+  padding: 0 16px;
+  letter-spacing: .08em;
   white-space: normal;
 }
 
@@ -1665,21 +1769,24 @@ fieldset {
 }
 
 .summary .btn {
-  margin-top: 22px;
+  margin-top: 16px;
+  min-height: 48px;
   padding: 0 18px;
-  letter-spacing: .12em;
+  font-size: 13px;
+  letter-spacing: .1em;
   white-space: nowrap;
 }
 
 .summary-note {
-  margin-top: 18px;
-  font-size: 14px;
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
   color: var(--ink-soft);
 }
 
 .form-message {
-  margin-top: 14px;
-  font-size: 15px;
+  margin-top: 12px;
+  font-size: 14px;
   color: #a4402c;
 }
 
@@ -1802,14 +1909,24 @@ fieldset {
 }
 
 @media (max-width: 700px) {
+  .service-categories-wrap {
+    margin-bottom: 14px;
+  }
+
   .service-categories {
     gap: 8px;
-    margin-bottom: 14px;
+    margin-bottom: 0;
   }
 
   .service-cat-btn {
     padding: 8px 14px;
     font-size: 13px;
+  }
+
+  .chip {
+    padding: 0 16px;
+    min-height: 38px;
+    font-size: 12px;
   }
 
   .service-options,
@@ -1840,7 +1957,7 @@ fieldset {
   }
 
   .summary {
-    padding: 28px 22px;
+    padding: 20px 18px;
   }
 }
 
