@@ -1,6 +1,12 @@
 from workers import Response
 
-BASE_HEADERS = {"cache-control": "no-store", "x-content-type-options": "nosniff"}
+BASE_HEADERS = {
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+    "strict-transport-security": "max-age=31536000",
+    "x-frame-options": "DENY",
+    "referrer-policy": "strict-origin-when-cross-origin",
+}
 
 
 def json_response(data, status: int = 200, headers: dict | None = None) -> Response:

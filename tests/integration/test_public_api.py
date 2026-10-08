@@ -48,6 +48,9 @@ def test_api_responses_are_not_cached(api):
     r = api.get("/api/availability", params={"service": "lifting"})
     assert r.headers["cache-control"] == "no-store"
     assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["strict-transport-security"] == "max-age=31536000"
+    assert r.headers["x-frame-options"] == "DENY"
+    assert r.headers["referrer-policy"] == "strict-origin-when-cross-origin"
 
 
 def test_api_security_headers_on_cookie_responses(api):
@@ -55,6 +58,9 @@ def test_api_security_headers_on_cookie_responses(api):
     assert r.status_code == 200
     assert "set-cookie" in r.headers
     assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["strict-transport-security"] == "max-age=31536000"
+    assert r.headers["x-frame-options"] == "DENY"
+    assert r.headers["referrer-policy"] == "strict-origin-when-cross-origin"
 
 
 #  availability
