@@ -30,3 +30,7 @@ TOTP_SECRET=
 # RESEND_API_KEY=
 # NOTIFY_EMAIL=
 # RESEND_FROM=
+
+# Orígenes adicionales permitidos para CORS (por ejemplo tu futuro dominio propio):
+# ALLOWED_ORIGINS=https://tu-dominio.com
+

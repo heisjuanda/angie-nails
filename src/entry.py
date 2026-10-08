@@ -7,6 +7,7 @@ from workers import WorkerEntrypoint
 import admin_api
 import auth
 import config
+import cors
 import public_api
 from responses import error
 
@@ -43,13 +44,19 @@ async def _drain_body(request) -> None:
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         _apply_env(self.env)
+        origin = request.headers.get("origin")
+        if request.method == "OPTIONS":
+            url = urlparse(request.url)
+            if url.path.startswith("/api/"):
+                return cors.preflight_response(origin, self.env, request.url)
+
         try:
             response = await self.route(request)
         except Exception:
             print(traceback.format_exc())
             response = error(500, "Ocurrió un error inesperado. Intenta de nuevo o escríbenos por WhatsApp.")
         await _drain_body(request)
-        return response
+        return cors.apply_cors(response, origin, self.env, request.url)
 
     async def route(self, request):
         env = self.env
@@ -68,7 +75,10 @@ class Default(WorkerEntrypoint):
 
         # --- panel de administración
         if path.startswith("/api/admin/"):
-            if method != "GET" and not auth.same_origin(request.headers.get("origin"), request.url):
+            origin = request.headers.get("origin")
+            if origin and not cors.is_admin_origin_allowed(origin, env, request.url):
+                return error(403, "Origen no permitido.")
+            if method != "GET" and not cors.is_admin_origin_allowed(origin, env, request.url):
                 return error(403, "Origen no permitido.")
             if path == "/api/admin/login" and method == "POST":
                 return await admin_api.login(env, request)

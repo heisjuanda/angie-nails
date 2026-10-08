@@ -33,6 +33,8 @@
 		// Clave pública de Turnstile (widget "AC Luxury Aesthetics", dominio *.workers.dev).
 		// En local se sobrescribe con la clave de prueba desde .dev.vars.
 		"TURNSTILE_SITE_KEY": "0x4AAAAAAFKglLNd2uJ-XZoY"
+		// Dominios adicionales permitidos para CORS (ej. el futuro dominio personalizado):
+		// "ALLOWED_ORIGINS": "https://tu-dominio.com"
 	},
 	"observability": {
 		"enabled": true
