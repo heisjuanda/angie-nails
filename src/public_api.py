@@ -64,7 +64,7 @@ async def get_availability(env, qs: dict):
 
 
 def created_payload(record: dict, service: dict, b: dict, status: str = "pending") -> dict:
-   return {
+    return {
         "code": record["code"],
         "status": status,
         "summary": {
@@ -72,6 +72,13 @@ def created_payload(record: dict, service: dict, b: dict, status: str = "pending
             "date": messages.format_date_es(b["date"]),
             "time": messages.format_time_es(b["time"]),
             "price": messages.format_price(service["price"]),
+        },
+        "location": {
+            "address": config.ESTUDIO_DIRECCION,
+            "neighborhood": config.ESTUDIO_BARRIO,
+            "reference": config.ESTUDIO_REFERENCIA,
+            "maps_url": config.ESTUDIO_MAPS_URL,
+            "waze_url": config.ESTUDIO_WAZE_URL,
         },
         "whatsapp_url": messages.whatsapp_url(messages.booking_whatsapp_text(record)),
     }

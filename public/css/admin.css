@@ -43,8 +43,16 @@
 }
 
 .login-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
   color: var(--ink-soft);
+}
+
+.login-back .icon-inline {
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .login-credit {

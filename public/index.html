@@ -68,23 +68,24 @@
       </button>
 
       <nav class="nav" id="menu" aria-label="Principal" data-nav>
-        <a href="#trabajos">Trabajos</a>
-        <a href="#sobre-mi">Sobre mí</a>
         <a href="#servicios">Servicios</a>
-        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#trabajos">Trabajos</a>
+        <a href="#agendar">Agendar</a>
+        <a href="#ubicacion">Ubicación</a>
+        <a href="#sobre-mi">Sobre mí</a>
         <a class="btn btn-dark btn-sm" href="#agendar">Agendar cita</a>
       </nav>
     </div>
   </header>
 
   <main id="contenido">
-    <!-- ============================================================== HERO -->
+    <!--  HERO -->
     <section class="hero section-sand" id="inicio">
       <div class="container hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">En el estudio · Cali</p>
+          <p class="eyebrow">Estudio privado · La Flora, Norte de Cali</p>
           <h1 class="display">Tu momento de belleza, <em>en el estudio.</em></h1>
-          <p class="lead">Uñas, cejas y pestañas con acabado de salón, en el estudio de Angélica.<span
+          <p class="lead">Uñas, cejas y pestañas con acabado de salón, en el estudio de Angélica en La Flora.<span
               class="hide-mobile"> Mira los trabajos de Angélica, elige tu servicio y agenda en minutos.</span></p>
           <div class="hero-actions">
             <a class="btn btn-dark" href="#agendar">Agendar cita
@@ -92,7 +93,7 @@
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </a>
-            <a class="btn btn-outline" href="#trabajos">Ver trabajos</a>
+            <a class="btn btn-outline" href="#servicios">Ver servicios</a>
           </div>
           <ul class="hero-features">
             <li>
@@ -100,7 +101,7 @@
                 <path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z" />
                 <circle cx="12" cy="10" r="2.5" />
               </svg>
-              En nuestro estudio
+              La Flora · Fácil parqueo
             </li>
             <li>
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -126,7 +127,28 @@
       </div>
     </section>
 
-    <!-- ========================================================= PORTAFOLIO -->
+    <!--  SERVICIOS -->
+    <section class="section section-dark" id="servicios">
+      <div class="container">
+        <div class="section-head section-head-split">
+          <div>
+            <p class="eyebrow eyebrow-light">Servicios</p>
+            <h2 class="h2">Elige lo que quieres consentir</h2>
+          </div>
+          <p class="services-note">Precios de referencia. El valor final puede variar según el diseño. <span
+              class="services-swipe-hint">Desliza para ver más <svg class="icon icon-inline" viewBox="0 0 24 24"
+                aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg></span></p>
+        </div>
+        <!-- Se llena desde /api/config (constantes en src/config.py). -->
+        <div class="services-grid" data-services-grid>
+          <p class="services-loading">Cargando servicios…</p>
+        </div>
+      </div>
+    </section>
+
+    <!--  PORTAFOLIO -->
     <section class="section section-cream" id="trabajos">
       <div class="container">
         <div class="section-head section-head-split">
@@ -166,80 +188,14 @@
       </div>
     </section>
 
-    <!-- ========================================================== SOBRE MÍ -->
-    <section class="section section-sand" id="sobre-mi">
-      <div class="container about-grid">
-        <div class="ph ph-arch about-photo tone-2" aria-hidden="true">
-          <span class="ph-label">[Retrato de Angélica trabajando]</span>
-        </div>
-        <div class="about-copy">
-          <p class="eyebrow">Sobre mí</p>
-          <h2 class="h2">Hola, soy <em>Angélica Castrillón</em></h2>
-          <p class="muted">[Su historia en 2–3 frases: cómo empezó, cuántos años lleva, dónde se formó y qué la inspira
-            de su trabajo.]</p>
-          <p class="muted hide-mobile">[Qué hace diferente su servicio: su estilo, los productos que usa, cómo cuida la
-            higiene y el detalle en cada cita.]</p>
-          <blockquote class="quote">“Manos y mirada que enamoran.”</blockquote>
-          <ul class="chips chips-static hide-mobile">
-            <li class="chip chip-dashed">[Certificación 1]</li>
-            <li class="chip chip-dashed">[Certificación 2]</li>
-            <li class="chip chip-dashed">[Años de experiencia]</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========================================================= SERVICIOS -->
-    <section class="section section-dark" id="servicios">
-      <div class="container">
-        <div class="section-head section-head-split">
-          <div>
-            <p class="eyebrow eyebrow-light">Servicios</p>
-            <h2 class="h2">Elige lo que quieres consentir</h2>
-          </div>
-          <p class="services-note">Precios de referencia. El valor final puede variar según el diseño.</p>
-        </div>
-        <!-- Se llena desde /api/config (constantes en src/config.py). -->
-        <div class="services-grid" data-services-grid>
-          <p class="services-loading">Cargando servicios…</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===================================================== CÓMO FUNCIONA -->
-    <section class="section section-sand" id="como-funciona">
-      <div class="container">
-        <div class="section-head section-head-center">
-          <p class="eyebrow">Así funciona</p>
-          <h2 class="h2">Tu cita en el estudio</h2>
-        </div>
-        <ol class="steps">
-          <li class="step">
-            <span class="step-num">01</span>
-            <h3 class="step-title">Elige tu servicio</h3>
-            <p class="muted">Uñas, cejas o pestañas. Si quieres un diseño especial, cuéntale tu idea a Angélica por
-              WhatsApp.</p>
-          </li>
-          <li class="step">
-            <span class="step-num">02</span>
-            <h3 class="step-title">Escoge día y hora</h3>
-            <p class="muted">Solo verás los horarios realmente disponibles.</p>
-          </li>
-          <li class="step">
-            <span class="step-num">03</span>
-            <h3 class="step-title">Relájate, nos vemos allá</h3>
-            <p class="muted">Angélica te confirma por WhatsApp y te espera en el estudio con todo lo necesario.</p>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <!-- =========================================================== AGENDAR -->
-    <section class="section section-cream" id="agendar">
+    <!--  AGENDAR -->
+    <section class="section section-sand" id="agendar">
       <div class="container">
         <div class="section-head">
           <p class="eyebrow">Agenda tu cita</p>
           <h2 class="h2">Reserva en tres pasos</h2>
+          <p class="muted">Elige tu servicio, escoge día y hora con disponibilidad en tiempo real, y confirma por
+            WhatsApp.</p>
         </div>
 
         <form class="booking" data-booking novalidate>
@@ -320,6 +276,10 @@
                   <dd data-sum="time">—</dd>
                 </div>
                 <div>
+                  <dt>Ubicación</dt>
+                  <dd>La Flora <span class="summary-subtext">· Norte de Cali</span></dd>
+                </div>
+                <div>
                   <dt>Valor</dt>
                   <dd data-sum="price">—</dd>
                 </div>
@@ -349,6 +309,18 @@
               <h3 class="summary-title">¡Horario apartado!</h3>
               <p>Tu código es <strong class="code" data-success-code></strong>.</p>
               <p class="muted">Último paso: envía el resumen por WhatsApp para que Angélica confirme tu cita.</p>
+
+              <div class="success-location" data-success-location hidden>
+                <p class="success-location-label">📍 Te esperamos en:</p>
+                <p class="success-location-address" data-success-address></p>
+                <p class="success-location-ref" data-success-ref></p>
+                <div class="success-location-actions">
+                  <a class="btn btn-outline btn-sm" href="#" target="_blank" rel="noopener" data-success-maps>Ver en
+                    Google Maps</a>
+                  <a class="btn btn-outline btn-sm" href="#" target="_blank" rel="noopener" data-success-waze>Waze</a>
+                </div>
+              </div>
+
               <a class="btn btn-dark btn-block" data-success-link href="#" target="_blank" rel="noopener">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5z" />
@@ -361,14 +333,169 @@
         </form>
       </div>
     </section>
+
+    <!--  UBICACIÓN -->
+    <section class="section section-cream" id="ubicacion">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Ubicación y cómo llegar</p>
+          <h2 class="h2">Tu cita en <em>La Flora · Norte de Cali</em></h2>
+          <p class="muted">Un espacio privado, íntimo y acogedor. Diseñado para que disfrutes tu momento de belleza con
+            total tranquilidad.</p>
+        </div>
+
+        <div class="location-grid">
+          <!-- MAPA OPENSTREETMAP (Punto de referencia público: Iglesia de Todos los Santos) -->
+          <div class="map-frame-box">
+            <div class="map-toolbar">
+              <span>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+                  <path d="M2 12h20" />
+                </svg>
+                Punto de referencia: Parroquia Todos los Santos · La Flora
+              </span>
+              <a href="https://www.openstreetmap.org/?mlat=3.4735&amp;mlon=-76.5165#map=17/3.4735/-76.5165"
+                target="_blank" rel="noopener" class="map-link">
+                Abrir mapa
+                <svg class="icon icon-inline" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 17L17 7M7 7h10v10" />
+                </svg>
+              </a>
+            </div>
+
+            <div class="map-container">
+              <iframe
+                src="https://www.openstreetmap.org/export/embed.html?bbox=-76.5205%2C3.4705%2C-76.5125%2C3.4765&amp;layer=mapnik&amp;marker=3.4735%2C-76.5165"
+                title="Punto de referencia: Iglesia de Todos los Santos, La Flora, Cali" loading="lazy">
+              </iframe>
+
+              <div class="map-overlay-pin" aria-hidden="true">
+                <div class="pin-bubble">
+                  <span class="pin-dot"></span>
+                  Punto de referencia: Parroquia Todos los Santos
+                </div>
+                <div class="pin-point"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DETALLES DE UBICACIÓN Y ACCESO -->
+          <div class="location-card">
+            <ul class="location-details-list">
+              <li class="location-detail-item">
+                <div class="detail-icon-wrap" aria-hidden="true">
+                  <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z" />
+                    <circle cx="12" cy="10" r="2.5" />
+                  </svg>
+                </div>
+                <div class="detail-body">
+                  <h3 class="detail-title">Sector y Barrio</h3>
+                  <p><strong>Barrio La Flora</strong>, Norte de Cali.<br>
+                    <span class="muted">Zona residencial tranquila, fresca y de fácil acceso por la Av. 3BN y Av. 6ta
+                      Norte.</span>
+                  </p>
+                </div>
+              </li>
+
+              <li class="location-detail-item">
+                <div class="detail-icon-wrap" aria-hidden="true">
+                  <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M3 21h18M5 21V7l7-4 7 4v14M10 9v4M14 9v4" />
+                  </svg>
+                </div>
+                <div class="detail-body">
+                  <h3 class="detail-title">Punto de Referencia</h3>
+                  <p><strong>Junto a la Parroquia de Todos los Santos</strong><br>
+                    <span class="muted">(Av. 3BN # 56-00). A pocos metros del parque del barrio.</span>
+                  </p>
+                </div>
+              </li>
+
+              <li class="location-detail-item">
+                <div class="detail-icon-wrap" aria-hidden="true">
+                  <svg class="icon" viewBox="0 0 24 24">
+                    <rect x="3" y="4" width="18" height="16" rx="2" />
+                    <path d="M9 16V8h4a2 2 0 0 1 0 4H9" />
+                  </svg>
+                </div>
+                <div class="detail-body">
+                  <h3 class="detail-title">Facilidad de Parqueo</h3>
+                  <p><strong>Fácil estacionamiento para carro o moto:</strong> Bahías y vía residencial amplia frente al
+                    sector, sin cobro de parquímetros ni congestión.</p>
+                </div>
+              </li>
+            </ul>
+
+            <div class="location-footer-info">
+              <div class="appointment-badge-card">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                <p>
+                  <strong>Atención únicamente con cita previa:</strong> Reservamos tu espacio exclusivo para brindarte
+                  atención personalizada sin esperas. La dirección exacta te llega al confirmar por WhatsApp.
+                </p>
+              </div>
+
+              <div class="location-actions">
+                <a class="btn btn-dark btn-sm"
+                  href="https://maps.google.com/?q=Iglesia+de+Todos+los+Santos+Cali+La+Flora" target="_blank"
+                  rel="noopener">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                  </svg>
+                  Ver zona en Google Maps
+                </a>
+                <a class="btn btn-outline btn-sm" href="https://waze.com/ul?q=Parroquia+Todos+los+Santos+Cali"
+                  target="_blank" rel="noopener">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-1.1 0-2 .9-2 2v7c0 .6.4 1 1 1h2" />
+                    <circle cx="7" cy="17" r="2" />
+                    <circle cx="17" cy="17" r="2" />
+                  </svg>
+                  Waze
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!--  SOBRE MÍ -->
+    <section class="section section-sand" id="sobre-mi">
+      <div class="container about-grid">
+        <div class="ph ph-arch about-photo tone-2" aria-hidden="true">
+          <span class="ph-label">[Retrato de Angélica trabajando]</span>
+        </div>
+        <div class="about-copy">
+          <p class="eyebrow">Sobre mí</p>
+          <h2 class="h2">Hola, soy <em>Angélica Castrillón</em></h2>
+          <p class="muted">[Su historia en 2–3 frases: cómo empezó, cuántos años lleva, dónde se formó y qué la inspira
+            de su trabajo.]</p>
+          <p class="muted hide-mobile">[Qué hace diferente su servicio: su estilo, los productos que usa, cómo cuida la
+            higiene y el detalle en cada cita.]</p>
+          <blockquote class="quote">“Manos y mirada que enamoran.”</blockquote>
+          <ul class="chips chips-static hide-mobile">
+            <li class="chip chip-dashed">[Certificación 1]</li>
+            <li class="chip chip-dashed">[Certificación 2]</li>
+            <li class="chip chip-dashed">[Años de experiencia]</li>
+          </ul>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <!-- ============================================================== FOOTER -->
+  <!--  FOOTER -->
   <footer class="site-footer">
     <div class="container footer-inner">
       <img class="footer-logo" src="/img/logo-ac-400.webp" alt="" width="72" height="72" loading="lazy">
       <p class="brand-name">Luxury Aesthetics</p>
-      <p class="brand-tag">Uñas · Cejas · Pestañas · Cali</p>
+      <p class="brand-tag">Uñas · Cejas · Pestañas · La Flora, Cali</p>
       <ul class="footer-social">
         <li><a href="https://www.instagram.com/lashes_nails_a.c/" target="_blank" rel="noopener">Instagram</a></li>
         <li><a href="https://www.tiktok.com/@angelica.castrillon_" target="_blank" rel="noopener">TikTok</a></li>
@@ -379,6 +506,22 @@
           David Moreno Alfonso</a></p>
     </div>
   </footer>
+
+  <!-- Botón flotante móvil para agendar cita -->
+  <aside class="mobile-sticky-bar is-hidden" data-mobile-sticky-bar aria-label="Acceso rápido a reserva">
+    <div class="mobile-sticky-inner">
+      <div class="mobile-sticky-info">
+        <span class="mobile-sticky-title">Estudio en La Flora</span>
+        <span class="mobile-sticky-sub">Norte de Cali · Cita previa</span>
+      </div>
+      <a class="btn btn-dark btn-sm mobile-sticky-btn" href="#agendar">
+        Agendar cita
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      </a>
+    </div>
+  </aside>
 </body>
 
 </html>

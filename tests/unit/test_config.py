@@ -63,3 +63,11 @@ def test_booking_limits_are_sane():
     assert config.MAX_PER_IP_HOUR < slots_in_window
     assert config.MAX_PER_IP_HOUR >= 4        # una familia grande agendando a la vez
     assert config.MAX_PER_PHONE_DAY > config.MAX_ACTIVE_PER_PHONE_DAY
+
+
+def test_studio_location_config():
+    assert "La Flora" in config.ESTUDIO_BARRIO
+    assert "Calle 56" in config.ESTUDIO_DIRECCION
+    assert "Todos los Santos" in config.ESTUDIO_REFERENCIA
+    assert config.ESTUDIO_MAPS_URL.startswith("https://maps.google.com")
+    assert config.ESTUDIO_WAZE_URL.startswith("https://waze.com")

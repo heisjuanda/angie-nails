@@ -408,7 +408,7 @@
     ui.message.replaceChildren();
     if (!msg) { ui.message.hidden = true; return; }
     ui.message.append(msg);
-    if (link) ui.message.append(h("a", { href: link, target: "_blank", rel: "noopener", text: "Escríbenos por WhatsApp →" }));
+    if (link) ui.message.append(h("a", { href: link, target: "_blank", rel: "noopener", text: "Escríbenos por WhatsApp \u2192\uFE0E" }));
     ui.message.hidden = false;
   }
 
@@ -509,6 +509,20 @@
   function showSuccess(data) {
     form.querySelector("[data-success-code]").textContent = data.code;
     form.querySelector("[data-success-link]").href = data.whatsapp_url;
+    if (data.location) {
+      const locBox = form.querySelector("[data-success-location]");
+      if (locBox) {
+        const addrEl = form.querySelector("[data-success-address]");
+        const refEl = form.querySelector("[data-success-ref]");
+        const mapsLink = form.querySelector("[data-success-maps]");
+        const wazeLink = form.querySelector("[data-success-waze]");
+        if (addrEl) addrEl.textContent = data.location.address;
+        if (refEl) refEl.textContent = `${data.location.neighborhood} · ${data.location.reference}`;
+        if (mapsLink && data.location.maps_url) mapsLink.href = data.location.maps_url;
+        if (wazeLink && data.location.waze_url) wazeLink.href = data.location.waze_url;
+        locBox.hidden = false;
+      }
+    }
     ui.summary.hidden = true;
     ui.success.hidden = false;
     ui.success.focus();
@@ -519,6 +533,8 @@
     ["name", "phone", "notes"].forEach((n) => { form.elements[n].value = ""; });
     state.time = null;
     state.formToken = newFormToken();
+    const locBox = form.querySelector("[data-success-location]");
+    if (locBox) locBox.hidden = true;
     ui.success.hidden = true;
     ui.summary.hidden = false;
     renderSummary();

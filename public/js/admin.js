@@ -98,7 +98,7 @@
   function toast(message, { link, error = false } = {}) {
     const node = $("[data-toast]");
     node.replaceChildren(h("span", { text: message }));
-    if (link) node.append(h("a", { href: link, target: "_blank", rel: "noopener", text: "Abrir WhatsApp →" }));
+    if (link) node.append(h("a", { href: link, target: "_blank", rel: "noopener", text: "Abrir WhatsApp \u2192\uFE0E" }));
     node.classList.toggle("is-error", error);
     node.hidden = false;
     clearTimeout(toast.timer);
@@ -156,8 +156,8 @@
       return;
     }
     const node = $("[data-pagination]");
-    const prev = h("button", { type: "button", class: "btn btn-outline btn-sm", "data-page": state.page - 1, text: "← Anterior" });
-    const next = h("button", { type: "button", class: "btn btn-outline btn-sm", "data-page": state.page + 1, text: "Siguiente →" });
+    const prev = h("button", { type: "button", class: "btn btn-outline btn-sm", "data-page": state.page - 1, text: "\u2190\uFE0E Anterior" });
+    const next = h("button", { type: "button", class: "btn btn-outline btn-sm", "data-page": state.page + 1, text: "Siguiente \u2192\uFE0E" });
     prev.disabled = state.page <= 1;
     next.disabled = state.page >= pages;
     node.replaceChildren(

@@ -17,6 +17,13 @@ HORA_FIN_X = "18:00"
 
 WHATSAPP = "573245967079"
 
+# Ubicación del estudio (Semi-privado: la dirección exacta se revela sólo tras reservar)
+ESTUDIO_BARRIO = "La Flora, Cali"
+ESTUDIO_REFERENCIA = "Al lado de la Parroquia Todos los Santos (Av. 3BN # 56-00)"
+ESTUDIO_DIRECCION = "Calle 56 # 3AN-111"
+ESTUDIO_MAPS_URL = "https://maps.google.com/?q=Calle+56+%233AN-111+La+Flora+Cali"
+ESTUDIO_WAZE_URL = "https://waze.com/ul?ll=3.4735,-76.5165&navigate=yes"
+
 # Servicios
 
 CATEGORIES = [

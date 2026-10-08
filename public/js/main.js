@@ -117,9 +117,57 @@ async function initServices() {
   $$("[data-whatsapp-link]").forEach((a) => { a.href = `https://wa.me/${config.whatsapp}`; });
 }
 
+/*  barra flotante móvil */
+function initStickyBookingBar() {
+  const bar = $("[data-mobile-sticky-bar]");
+  const bookingSection = document.getElementById("agendar");
+  const heroSection = document.getElementById("inicio");
+  if (!bar || !bookingSection) return;
+
+  let isBookingVisible = false;
+  let isHeroVisible = true;
+
+  const update = () => {
+    const shouldHide = isBookingVisible || isHeroVisible;
+    bar.classList.toggle("is-hidden", shouldHide);
+  };
+
+  if ("IntersectionObserver" in window) {
+    const bookingObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          isBookingVisible = e.isIntersecting;
+          update();
+        });
+      },
+      { threshold: 0.08 }
+    );
+
+    const heroObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          isHeroVisible = e.isIntersecting;
+          update();
+        });
+      },
+      { threshold: 0.3 }
+    );
+
+    bookingObserver.observe(bookingSection);
+    if (heroSection) heroObserver.observe(heroSection);
+  } else {
+    window.addEventListener("scroll", () => {
+      const rect = bookingSection.getBoundingClientRect();
+      const inBooking = rect.top < window.innerHeight && rect.bottom > 0;
+      bar.classList.toggle("is-hidden", inBooking || window.scrollY < 120);
+    }, { passive: true });
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initNav();
   initPortfolio();
   initServices();
+  initStickyBookingBar();
   $$("[data-year]").forEach((n) => { n.textContent = new Date().getFullYear(); });
 });
