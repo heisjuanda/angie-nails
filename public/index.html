@@ -319,6 +319,10 @@
                   <dd data-sum="price">—</dd>
                 </div>
               </dl>
+              <div class="summary-payment-wrap">
+                <p class="summary-payment-label">Pago en el estudio</p>
+                <p class="payment-methods-text">Bre-B · Nequi · Bancolombia · Nu · Daviplata · Efectivo</p>
+              </div>
               <div class="turnstile" data-turnstile></div>
               <div class="ts-notice" data-ts-notice role="status" hidden>
                 <p class="ts-notice-text" data-ts-notice-text></p>
@@ -340,47 +344,129 @@
             </div>
 
             <!-- Estado de éxito -->
+            <!-- Estado de éxito (Pase de Cita Boutique) -->
             <div class="success" data-success hidden tabindex="-1">
-              <h3 class="summary-title">¡Horario apartado!</h3>
-              <p>Tu código es <strong class="code" data-success-code></strong>.</p>
-              <p class="muted">Último paso: envía el resumen por WhatsApp para que Angélica confirme tu cita.</p>
+              <div class="success-header">
+                <h3 class="summary-title success-main-title">¡Te esperamos en el estudio!</h3>
+                <div class="success-code-wrap">
+                  <span class="success-code-label">Código de cita:</span>
+                  <button class="success-code-badge" type="button" data-copy-code title="Copiar código de cita">
+                    <span class="code" data-success-code></span>
+                    <span class="success-code-copy-btn">
+                      <svg class="icon icon-copy" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                      <svg class="icon icon-check" viewBox="0 0 24 24" aria-hidden="true" hidden>
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                      <span data-copy-status>Copiar</span>
+                    </span>
+                  </button>
+                </div>
+                <p class="muted success-lead-text">Último paso: envía el resumen por WhatsApp para que Angélica confirme tu cita en agenda.</p>
+              </div>
 
-              <div class="success-location" data-success-location hidden>
-                <p class="success-location-label">
+              <!-- Ficha resumen de la cita (Ticket) -->
+              <div class="success-ticket">
+                <div class="ticket-col">
+                  <span class="ticket-col-label">Servicio</span>
+                  <span class="ticket-col-val" data-success-service>Cargando servicio…</span>
+                </div>
+                <div class="ticket-col">
+                  <span class="ticket-col-label">Fecha y Hora</span>
+                  <span class="ticket-col-val" data-success-datetime>Cargando horario…</span>
+                </div>
+                <div class="ticket-col" data-success-client-wrap>
+                  <span class="ticket-col-label">A nombre de</span>
+                  <span class="ticket-col-val" data-success-client></span>
+                </div>
+              </div>
+
+              <!-- Acciones prioritarias -->
+              <div class="success-cta-group">
+                <a class="btn btn-dark btn-block success-wa-btn" data-success-link href="#" target="_blank" rel="noopener">
                   <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z" />
-                    <circle cx="12" cy="10" r="2.5" />
+                    <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5z" />
                   </svg>
-                  <span>Te esperamos en:</span>
-                </p>
-                <p class="success-location-address" data-success-address></p>
-                <p class="success-location-ref" data-success-ref></p>
-                <div class="success-location-actions">
-                  <a class="btn btn-outline btn-sm success-loc-btn" href="#" target="_blank" rel="noopener" data-success-maps>
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                  <span>Enviar resumen por WhatsApp</span>
+                </a>
+                <a class="btn btn-outline btn-block success-cal-btn" data-success-gcal href="#" target="_blank" rel="noopener" hidden>
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3.5" y="5" width="17" height="15" rx="2" />
+                    <path d="M3.5 10h17M8 3v4M16 3v4" />
+                  </svg>
+                  <span>Guardar en Google Calendar</span>
+                </a>
+              </div>
+
+              <!-- Grid 50/50: Ubicación + Cuidados Aftercare -->
+              <div class="success-cards-grid">
+                <!-- Columna 1: Ubicación -->
+                <div class="success-location" data-success-location hidden>
+                  <div class="success-card-body">
+                    <span class="success-location-label">
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z" />
+                        <circle cx="12" cy="10" r="2.5" />
+                      </svg>
+                      <span>Te esperamos en:</span>
+                    </span>
+                    <p class="success-location-address" data-success-address></p>
+                    <p class="success-location-ref" data-success-ref></p>
+                  </div>
+                  <div class="success-location-actions">
+                    <a class="btn btn-outline btn-sm success-loc-btn" href="#" target="_blank" rel="noopener" data-success-maps>
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                      </svg>
+                      <span>Google Maps</span>
+                    </a>
+                    <a class="btn btn-outline btn-sm success-loc-btn" href="#" target="_blank" rel="noopener" data-success-waze>
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-1.1 0-2 .9-2 2v7c0 .6.4 1 1 1h2" />
+                        <circle cx="7" cy="17" r="2" />
+                        <circle cx="17" cy="17" r="2" />
+                      </svg>
+                      <span>Waze</span>
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Columna 2: Cuidados Aftercare -->
+                <div class="success-aftercare">
+                  <div class="success-card-body">
+                    <span class="success-aftercare-badge">
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z" />
+                      </svg>
+                      Exclusivo para tu cita
+                    </span>
+                    <h4 class="success-aftercare-title">Guía de Cuidados Post-Cita</h4>
+                    <p class="success-aftercare-desc">Aprende cómo proteger tu set desde las primeras 24 horas y conoce cuándo agendar tu retoque.</p>
+                  </div>
+                  <a class="btn btn-outline btn-sm success-aftercare-btn" href="/cuidados" target="_blank" rel="noopener">
+                    <span>Ver guía de cuidados</span>
+                    <svg class="icon icon-inline" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M7 17L17 7M7 7h10v10" />
                     </svg>
-                    <span><span class="loc-verb">Ver en </span>Google Maps</span>
-                  </a>
-                  <a class="btn btn-outline btn-sm success-loc-btn" href="#" target="_blank" rel="noopener" data-success-waze>
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-1.1 0-2 .9-2 2v7c0 .6.4 1 1 1h2" />
-                      <circle cx="7" cy="17" r="2" />
-                      <circle cx="17" cy="17" r="2" />
-                    </svg>
-                    <span><span class="loc-verb">Ver en </span>Waze</span>
                   </a>
                 </div>
               </div>
 
-              <a class="btn btn-dark btn-block" data-success-link href="#" target="_blank" rel="noopener">
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5z" />
-                </svg>
-                Enviar por WhatsApp
-              </a>
-              <button class="btn btn-outline btn-block" type="button" data-new-booking>Agendar otra cita</button>
+              <!-- Tarjeta de Métodos de Pago en el estudio -->
+              <div class="success-payment-card">
+                <span class="success-payment-badge">Pago en el estudio</span>
+                <h4 class="success-payment-title">Comodidad y transparencia al pagar</h4>
+                <p class="success-payment-desc">Pagas al terminar tu cita en el estudio. Recibimos transferencias inmediatas de cualquier entidad bancaria y efectivo:</p>
+                <p class="payment-methods-text">Bre-B · Nequi · Bancolombia · Nu · Daviplata · Efectivo</p>
+              </div>
+
+              <!-- Reset / Agendar otra cita -->
+              <div class="success-footer-action">
+                <button class="btn btn-outline btn-sm" type="button" data-new-booking>Agendar otra cita</button>
+              </div>
             </div>
           </aside>
         </form>
@@ -549,6 +635,14 @@
       <img class="footer-logo" src="/img/logo-ac-400.webp" alt="" width="72" height="72" loading="lazy">
       <p class="brand-name">Luxury Aesthetics</p>
       <p class="brand-tag">Uñas · Cejas · Pestañas · La Flora, Cali</p>
+
+      <!-- Medios de pago en estudio -->
+      <div class="footer-payments">
+        <p class="footer-payments-title">Pago en el estudio</p>
+        <p class="payment-methods-text">Bre-B · Nequi · Bancolombia · Nu · Daviplata · Efectivo</p>
+        <p class="footer-payments-note">Transferencias directas e inmediatas · Sin recargos</p>
+      </div>
+
       <ul class="footer-social">
         <li><a href="https://www.instagram.com/lashes_nails_a.c/" target="_blank" rel="noopener">Instagram</a></li>
         <li><a href="https://www.tiktok.com/@angelica.castrillon_" target="_blank" rel="noopener">TikTok</a></li>

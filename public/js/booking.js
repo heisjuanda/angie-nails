@@ -552,8 +552,45 @@
   }
 
   function showSuccess(data) {
+    form.classList.add("is-booked");
     form.querySelector("[data-success-code]").textContent = data.code;
     form.querySelector("[data-success-link]").href = data.whatsapp_url;
+
+    const s = service();
+    const sName = data.summary?.service || s?.name || "Servicio en estudio";
+    const dText = data.summary?.date && data.summary?.time
+      ? `${data.summary.date} · ${data.summary.time}`
+      : (state.date && state.time ? `${formatDateLong(state.date)} · ${formatTime(state.time)}` : "");
+    const cName = form.elements.name?.value?.trim() || "";
+
+    const sEl = form.querySelector("[data-success-service]");
+    const dtEl = form.querySelector("[data-success-datetime]");
+    const nEl = form.querySelector("[data-success-client]");
+    const nWrap = form.querySelector("[data-success-client-wrap]");
+
+    if (sEl) sEl.textContent = sName;
+    if (dtEl) dtEl.textContent = dText || "Horario confirmado";
+    if (nEl) nEl.textContent = cName || "Clienta";
+    if (nWrap) nWrap.hidden = !cName;
+
+    const calBtn = form.querySelector("[data-success-gcal]");
+    if (calBtn && state.date && state.time) {
+      try {
+        const [h, m] = state.time.split(":").map(Number);
+        const dur = s?.duration || 60;
+        const start = new Date(`${state.date}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`);
+        const end = new Date(start.getTime() + dur * 60000);
+        const pad = (n) => String(n).padStart(2, "0");
+        const fmtG = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+        const locStr = data.location ? `${data.location.address}, ${data.location.neighborhood}, Cali` : "La Flora, Cali";
+        const detailsStr = `Cita confirmada en AC Luxury Aesthetics.\nCódigo: ${data.code}\nServicio: ${sName}\nHorario: ${dText}\nDirección: ${locStr}\n\nGuía de Cuidados: https://angienails.com/cuidados`;
+        calBtn.href = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Cita: ${sName} · AC Luxury Aesthetics`)}&dates=${fmtG(start)}/${fmtG(end)}&details=${encodeURIComponent(detailsStr)}&location=${encodeURIComponent(locStr)}`;
+        calBtn.hidden = false;
+      } catch (e) {
+        calBtn.hidden = true;
+      }
+    }
+
     if (data.location) {
       const locBox = form.querySelector("[data-success-location]");
       if (locBox) {
@@ -571,10 +608,12 @@
     ui.summary.hidden = true;
     ui.success.hidden = false;
     ui.success.focus();
-    state.slots.delete(state.serviceId); // el horario reservado ya no está libre
+    state.slots.delete(state.serviceId);
+    document.getElementById("agendar")?.scrollIntoView({ behavior: "smooth" });
   }
 
   function resetForNewBooking() {
+    form.classList.remove("is-booked");
     ["name", "phone", "notes"].forEach((n) => { form.elements[n].value = ""; });
     state.time = null;
     state.formToken = newFormToken();
@@ -584,7 +623,7 @@
     ui.summary.hidden = false;
     renderSummary();
     loadAvailability();
-    document.getElementById("agendar").scrollIntoView();
+    document.getElementById("agendar").scrollIntoView({ behavior: "smooth" });
   }
 
   async function init() {
@@ -625,6 +664,49 @@
     });
     form.addEventListener("submit", onSubmit);
     form.querySelector("[data-new-booking]").addEventListener("click", resetForNewBooking);
+    const copyBtn = form.querySelector("[data-copy-code]");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", async () => {
+        const codeEl = form.querySelector("[data-success-code]");
+        const code = codeEl?.textContent?.trim();
+        if (!code) return;
+        const statusEl = copyBtn.querySelector("[data-copy-status]");
+        const copyIcon = copyBtn.querySelector(".icon-copy");
+        const checkIcon = copyBtn.querySelector(".icon-check");
+
+        const showCopied = () => {
+          if (statusEl) statusEl.textContent = "¡Copiado!";
+          copyBtn.classList.add("is-copied");
+          if (copyIcon) copyIcon.hidden = true;
+          if (checkIcon) checkIcon.hidden = false;
+          setTimeout(() => {
+            if (statusEl) statusEl.textContent = "Copiar";
+            copyBtn.classList.remove("is-copied");
+            if (copyIcon) copyIcon.hidden = false;
+            if (checkIcon) checkIcon.hidden = true;
+          }, 2200);
+        };
+
+        try {
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(code);
+            showCopied();
+          } else {
+            throw new Error("Clipboard API unavailable");
+          }
+        } catch {
+          const ta = document.createElement("textarea");
+          ta.value = code;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          showCopied();
+        }
+      });
+    }
     ui.retry.addEventListener("click", retryTurnstile);
     ["name", "phone"].forEach((n) => form.elements[n].addEventListener("input", () => {
       clearError(n);

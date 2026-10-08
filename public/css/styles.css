@@ -1118,9 +1118,12 @@ fieldset {
 }
 
 @keyframes pinBounce {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translate(-50%, -100%);
   }
+
   50% {
     transform: translate(-50%, -115%);
   }
@@ -1182,29 +1185,47 @@ fieldset {
 }
 
 .detail-icon-wrap {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  background: rgba(139, 94, 79, .12);
+  background: var(--white);
+  border: 1px solid var(--line);
   color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.detail-icon-wrap .icon {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.8;
 }
 
 .detail-title {
-  font-size: 15px;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 400;
   color: var(--ink);
-  margin-bottom: 2px;
+  line-height: 1.25;
+  margin-bottom: 4px;
+  letter-spacing: -.005em;
 }
 
 .location-detail-item p {
-  font-size: 14px;
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  font-weight: 300;
   color: var(--ink-soft);
-  line-height: 1.45;
+  line-height: 1.55;
   margin: 0;
+}
+
+.location-detail-item strong {
+  color: var(--ink);
+  font-weight: 500;
 }
 
 .appointment-badge-card {
@@ -1227,9 +1248,11 @@ fieldset {
 }
 
 .appointment-badge-card p {
+  font-family: var(--font-body);
   font-size: 13.5px;
+  font-weight: 300;
   color: var(--ink);
-  line-height: 1.45;
+  line-height: 1.5;
   margin: 0;
 }
 
@@ -1297,9 +1320,12 @@ fieldset {
 }
 
 @keyframes hintNudge {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateX(0);
   }
+
   50% {
     transform: translateX(4px);
   }
@@ -1798,105 +1824,7 @@ fieldset {
   margin-top: 12px;
 }
 
-.code {
-  font-family: var(--font-display);
-  font-size: 26px;
-  letter-spacing: .06em;
-}
 
-.success-location {
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  margin: 14px 0 16px;
-  text-align: left;
-}
-
-.success-location-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 4px;
-}
-
-.success-location-label .icon {
-  width: 13px;
-  height: 13px;
-  stroke-width: 2;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.success-location-address {
-  font-size: 15.5px;
-  font-weight: 500;
-  color: var(--ink);
-  margin-bottom: 2px;
-  line-height: 1.35;
-}
-
-.success-location-ref {
-  font-size: 13px;
-  color: var(--ink-soft);
-  margin-bottom: 12px;
-  line-height: 1.4;
-}
-
-.success-location-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  max-width: 380px;
-}
-
-.summary .success-location-actions .btn,
-.success .success-location-actions .btn,
-.success-location-actions .btn {
-  margin-top: 0 !important;
-  min-height: 36px;
-  height: 36px;
-  padding: 0 10px;
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  white-space: nowrap;
-}
-
-.success-location-actions .icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-}
-
-.success .success-location + .btn,
-.summary .success .success-location + .btn {
-  margin-top: 14px;
-}
-
-@media (max-width: 440px), (min-width: 1001px) {
-  .success-location-actions .loc-verb {
-    display: none;
-  }
-}
-
-@media (max-width: 350px) {
-  .success-location-actions {
-    grid-template-columns: 1fr;
-  }
-}
 
 @media (max-width: 1000px) {
   .booking {
@@ -2123,4 +2051,855 @@ fieldset {
 
 .not-found .btn {
   margin-top: 28px;
+}
+
+/*  Pase de Cita Boutique (Modo Éxito) */
+.booking.is-booked {
+  display: block;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.booking.is-booked .booking-steps {
+  display: none !important;
+}
+
+.booking.is-booked .summary {
+  position: static;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: clamp(26px, 4vw, 38px) clamp(20px, 4vw, 36px);
+  box-shadow: 0 4px 28px rgba(31, 26, 23, .07);
+}
+
+.success-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.success-main-title {
+  font-size: clamp(24px, 3.8vw, 32px);
+  margin-bottom: 8px;
+  line-height: 1.15;
+}
+
+.success-code-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 auto 12px;
+  flex-wrap: wrap;
+}
+
+.success-code-label {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--ink-soft);
+  letter-spacing: .02em;
+}
+
+.success-code-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 6px 5px 14px;
+  cursor: pointer;
+  transition: border-color .2s, background-color .2s, box-shadow .2s;
+  box-shadow: 0 1px 3px rgba(31, 26, 23, .04);
+  user-select: none;
+  font-family: var(--font-body);
+  color: inherit;
+}
+
+.success-code-badge:hover {
+  border-color: var(--accent);
+  background: var(--sand);
+  box-shadow: 0 2px 8px rgba(184, 137, 107, .12);
+}
+
+.success-code-badge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.success-code-badge .code {
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: .16em;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.success-code-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--sand);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--accent);
+  transition: background-color .2s, color .2s;
+}
+
+.success-code-badge:hover .success-code-copy-btn {
+  background: var(--white);
+}
+
+.success-code-copy-btn .icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1.8;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+.success-code-badge.is-copied {
+  background: #f4fbf7;
+  border-color: #27ae60;
+}
+
+.success-code-badge.is-copied .code {
+  color: #1e7e45;
+}
+
+.success-code-badge.is-copied .success-code-copy-btn {
+  background: #e4f7eb;
+  color: #1e7e45;
+}
+
+.success-lead-text {
+  font-size: 13.5px;
+  font-weight: 300;
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/*  Ficha Resumen de la Cita (Ticket) */
+.success-ticket {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin: 18px 0;
+  text-align: left;
+}
+
+.ticket-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ticket-col-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.ticket-col-val {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.ticket-col-val[data-success-client] {
+  text-transform: capitalize;
+}
+
+/*  Acciones Prioritarias */
+.success-cta-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.success-cta-group .btn {
+  margin-top: 0 !important;
+}
+
+.success-wa-btn {
+  background: var(--ink) !important;
+  color: var(--cream) !important;
+  font-family: var(--font-body) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: .14em !important;
+  text-transform: uppercase !important;
+  min-height: 48px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+}
+
+.success-wa-btn:hover {
+  background: #000 !important;
+}
+
+.success-cal-btn {
+  background: var(--white) !important;
+  border-color: var(--line-strong) !important;
+  color: var(--ink) !important;
+  font-family: var(--font-body) !important;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: .14em !important;
+  text-transform: uppercase !important;
+  min-height: 42px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+}
+
+.success-cal-btn:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+/*  Grid 50/50: Ubicación + Cuidados */
+.success-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.success-cards-grid .success-location,
+.success-cards-grid .success-aftercare {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.success-card-body {
+  margin-bottom: 14px;
+}
+
+.success-location-label,
+.success-aftercare-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.success-location-label .icon,
+.success-aftercare-badge .icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1.8;
+  color: var(--accent);
+}
+
+.success-location-address {
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.35;
+  margin-bottom: 4px;
+}
+
+.success-location-ref {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--ink-soft);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.success-aftercare-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.25;
+  margin: 0 0 5px;
+}
+
+.success-aftercare-desc {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--ink-soft);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.success-location-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.success-location-actions .btn,
+.success-aftercare-btn {
+  margin-top: 0 !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 0 10px !important;
+  font-family: var(--font-body) !important;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: .02em !important;
+  text-transform: none !important;
+  background: var(--sand) !important;
+  border-color: var(--line) !important;
+  color: var(--ink) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  transition: border-color .2s, color .2s, background-color .2s !important;
+}
+
+.success-location-actions .btn span,
+.success-aftercare-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.success-location-actions .btn .icon,
+.success-aftercare-btn .icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
+  flex-shrink: 0;
+}
+
+.success-location-actions .btn:hover,
+.success-aftercare-btn:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  background: var(--white) !important;
+}
+
+.success-footer-action {
+  text-align: center;
+  padding-top: 6px;
+}
+
+.success-footer-action .btn {
+  margin: 0 auto;
+  font-size: 12px;
+  color: var(--ink-soft);
+  border-color: transparent;
+  background: transparent;
+}
+
+.success-footer-action .btn:hover {
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+/* ==========================================================================
+   Métodos de pago transparentes (Resumen, Éxito y Footer)
+   ========================================================================== */
+.payment-methods-text {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--ink-soft);
+  letter-spacing: .02em;
+  line-height: 1.5;
+}
+
+/* Ubicación 1: Resumen de cita */
+.summary-payment-wrap {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.summary-payment-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+/* Ubicación 2: Tarjeta en Estado de Éxito */
+.success-payment-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.success-payment-badge {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.success-payment-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.25;
+  margin: 0 0 5px;
+}
+
+.success-payment-desc {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 300;
+  color: var(--ink-soft);
+  line-height: 1.45;
+  margin: 0 0 8px;
+}
+
+.success-payment-card .payment-methods-text {
+  color: var(--ink);
+  font-weight: 400;
+}
+
+/* Ubicación 3: Footer */
+.footer-payments {
+  margin: 18px 0 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.footer-payments-title {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+
+.footer-payments-note {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--ink-soft);
+  margin: 0;
+  letter-spacing: .02em;
+}
+
+@media (max-width: 680px) {
+  .success-ticket {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .success-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .success-location-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/*  Página /cuidados (Guía de Cuidados Aftercare) */
+.cuidados-hero {
+  padding: clamp(36px, 6vw, 64px) 0 clamp(28px, 5vw, 44px);
+  text-align: center;
+}
+
+.cuidados-hero .display {
+  font-size: clamp(32px, 5.5vw, 54px);
+  line-height: 1.1;
+  margin-bottom: 14px;
+}
+
+.cuidados-hero .lead {
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.cuidados-panel[hidden] {
+  display: none !important;
+}
+
+.cuidados-pillars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 820px;
+  margin: 32px auto 0;
+  text-align: left;
+}
+
+.cuidados-pillar-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+}
+
+.cuidados-pillar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--sand);
+  border: 1px solid var(--line);
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.cuidados-pillar-icon .icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.cuidados-pillar-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.25;
+  margin-bottom: 5px;
+  letter-spacing: -.005em;
+}
+
+.cuidados-pillar-desc {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 300;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.cuidados-tabs-nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.cuidados-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 400;
+  letter-spacing: .02em;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color .2s, background-color .2s, color .2s;
+  user-select: none;
+}
+
+.cuidados-tab-btn .icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+  color: currentColor;
+}
+
+.cuidados-tab-btn:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.cuidados-tab-btn.is-active,
+.cuidados-tab-btn[aria-selected="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--cream);
+  box-shadow: 0 2px 8px rgba(31, 26, 23, .12);
+}
+
+.cuidados-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.cuidados-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 24px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.cuidados-card-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--sand);
+  border: 1px solid var(--line);
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.cuidados-card-badge .icon {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.cuidados-card-title {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.25;
+  margin-bottom: 8px;
+  letter-spacing: -.005em;
+}
+
+.cuidados-card-text {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.cuidados-card-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--accent);
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.cuidados-card-tip .icon {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cuidados-card-alert {
+  background: #fdf5f3;
+  border-color: #f0cdc5;
+}
+
+.cuidados-card-alert .cuidados-card-badge {
+  background: #fbeae6;
+  border-color: #f0cdc5;
+  color: #a4402c;
+}
+
+.cuidados-card-alert .cuidados-card-title {
+  color: #7d2616;
+}
+
+.cuidados-card-alert .cuidados-card-tip {
+  border-color: #f0cdc5;
+  color: #a4402c;
+}
+
+.cuidados-cycle-box {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: clamp(24px, 4vw, 36px);
+}
+
+.cuidados-cycle-head {
+  max-width: 680px;
+  margin-bottom: 24px;
+}
+
+.cuidados-cycle-head .h2 {
+  font-size: clamp(24px, 3.5vw, 32px);
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.cuidados-cycle-head p {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.cuidados-cycle-head strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.cuidados-cycle-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.cuidados-cycle-item {
+  background: var(--sand);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 18px;
+}
+
+.cuidados-cycle-service {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.cuidados-cycle-time {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.cuidados-cycle-desc {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.cuidados-cta {
+  margin-top: 40px;
+  padding: clamp(28px, 5vw, 40px);
+  background: linear-gradient(135deg, var(--nude-1) 0%, var(--cream) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.cuidados-cta-text .h2 {
+  font-size: clamp(24px, 3.5vw, 32px);
+  margin-bottom: 4px;
+}
+
+.cuidados-cta-text p {
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  font-weight: 300;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin: 0;
+}
+
+@media (max-width: 800px) {
+  .cuidados-pillars {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .cuidados-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .cuidados-cycle-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .cuidados-cta {
+    flex-direction: column;
+    text-align: center;
+    gap: 18px;
+  }
+
+  .cuidados-cta-actions {
+    width: 100%;
+  }
+
+  .cuidados-cta-actions .btn {
+    width: 100%;
+  }
 }
