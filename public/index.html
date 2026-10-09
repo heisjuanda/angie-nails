@@ -226,8 +226,8 @@
         <form class="booking" data-booking novalidate>
           <div class="booking-steps">
             <!-- Paso 1 -->
-            <fieldset class="booking-step">
-              <legend class="step-label">
+            <div class="booking-step is-active" data-step="1" role="group" aria-labelledby="step-label-1">
+              <div class="step-label" id="step-label-1">
                 <span>1 · Servicio</span>
                 <span class="step-swipe-hint" data-cat-swipe-hint hidden aria-hidden="true">
                   Desliza
@@ -235,62 +235,128 @@
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
                 </span>
-              </legend>
-              <div class="service-categories-wrap">
-                <div class="service-categories" role="tablist" aria-label="Categorías de servicio"
-                  data-service-categories></div>
               </div>
-              <div class="service-options" data-service-options>
-                <p class="muted">Cargando servicios…</p>
+
+              <!-- Resumen colapsado del Paso 1 (mobile completado) -->
+              <div class="step-summary" data-step-collapsed="1" hidden role="button" tabindex="0" aria-label="Modificar servicio elegido">
+                <div class="step-summary-content">
+                  <span class="step-summary-check" aria-hidden="true">
+                    <svg class="icon" viewBox="0 0 24 24">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  <div class="step-summary-text">
+                    <span class="step-summary-title" data-step-title="1">—</span>
+                    <span class="step-summary-meta" data-step-meta="1">—</span>
+                  </div>
+                </div>
+                <button class="step-edit-btn" type="button" data-edit-step="1" aria-label="Modificar servicio" title="Modificar servicio">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                    <path d="M15 5l4 4" />
+                  </svg>
+                </button>
               </div>
-              <p class="field-error" data-error="service_id" hidden></p>
-            </fieldset>
+
+              <!-- Barra reducida pendiente (mobile) -->
+              <div class="step-pending-bar" data-step-pending="1" hidden role="button" tabindex="0" aria-label="Paso 1: Elegir servicio">
+                <span>1 · Elegir servicio</span>
+              </div>
+
+              <div class="step-body" data-step-body="1">
+                <div class="service-categories-wrap">
+                  <div class="service-categories" role="tablist" aria-label="Categorías de servicio"
+                    data-service-categories></div>
+                </div>
+                <div class="service-options" data-service-options>
+                  <p class="muted">Cargando servicios…</p>
+                </div>
+                <p class="field-error" data-error="service_id" hidden></p>
+              </div>
+            </div>
 
             <!-- Paso 2 -->
-            <fieldset class="booking-step">
-              <legend class="step-label">2 · Fecha y hora</legend>
-              <div class="date-picker">
-                <button class="date-nav" type="button" data-date-prev aria-label="Semana anterior">
+            <div class="booking-step is-pending" data-step="2" role="group" aria-labelledby="step-label-2">
+              <div class="step-label" id="step-label-2">2 · Fecha y hora</div>
+
+              <!-- Resumen colapsado del Paso 2 (mobile completado) -->
+              <div class="step-summary" data-step-collapsed="2" hidden role="button" tabindex="0" aria-label="Modificar fecha y horario elegidos">
+                <div class="step-summary-content">
+                  <span class="step-summary-check" aria-hidden="true">
+                    <svg class="icon" viewBox="0 0 24 24">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  <div class="step-summary-text">
+                    <span class="step-summary-title" data-step-title="2">—</span>
+                    <span class="step-summary-meta" data-step-meta="2">—</span>
+                  </div>
+                </div>
+                <button class="step-edit-btn" type="button" data-edit-step="2" aria-label="Modificar fecha y horario" title="Modificar fecha y horario">
                   <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M15 6l-6 6 6 6" />
-                  </svg>
-                </button>
-                <div class="date-strip" role="group" aria-label="Fechas" data-date-strip></div>
-                <button class="date-nav" type="button" data-date-next aria-label="Semana siguiente">
-                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M9 6l6 6-6 6" />
+                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                    <path d="M15 5l4 4" />
                   </svg>
                 </button>
               </div>
-              <div class="time-grid" role="group" aria-label="Horarios" data-time-grid>
-                <p class="muted">Elige primero un servicio.</p>
+
+              <!-- Barra reducida pendiente (mobile) -->
+              <div class="step-pending-bar" data-step-pending="2" role="button" tabindex="0" aria-label="Paso 2: Seleccionar horario">
+                <span>2 · Seleccionar horario</span>
               </div>
-              <p class="hint">Horarios tachados: ya reservados. Los domingos no hay agenda.</p>
-              <p class="field-error" data-error="time" hidden></p>
-            </fieldset>
+
+              <div class="step-body" data-step-body="2">
+                <div class="date-picker">
+                  <button class="date-nav" type="button" data-date-prev aria-label="Semana anterior">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M15 6l-6 6 6 6" />
+                    </svg>
+                  </button>
+                  <div class="date-strip" role="group" aria-label="Fechas" data-date-strip></div>
+                  <button class="date-nav" type="button" data-date-next aria-label="Semana siguiente">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </button>
+                </div>
+                <div class="time-grid" role="group" aria-label="Horarios" data-time-grid>
+                  <p class="muted">Elige primero un servicio.</p>
+                </div>
+                <p class="hint">Horarios tachados: ya reservados. Los domingos no hay agenda.</p>
+                <p class="field-error" data-error="time" hidden></p>
+              </div>
+            </div>
 
             <!-- Paso 3 -->
-            <fieldset class="booking-step">
-              <legend class="step-label">3 · Tus datos</legend>
-              <div class="form-grid">
-                <label class="field">
-                  <span class="field-label">Nombre</span>
-                  <input name="name" autocomplete="name" placeholder="Tu nombre" required maxlength="80">
-                  <span class="field-error" data-error="name" hidden></span>
-                </label>
-                <label class="field">
-                  <span class="field-label">WhatsApp</span>
-                  <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="300 000 0000" required
-                    maxlength="20">
-                  <span class="field-error" data-error="phone" hidden></span>
-                </label>
-                <label class="field field-wide">
-                  <span class="field-label">Notas <span class="optional">(opcional)</span></span>
-                  <textarea name="notes" rows="2" maxlength="500"
-                    placeholder="Diseño que te gustaría, referencias, alergias…"></textarea>
-                </label>
+            <div class="booking-step is-pending" data-step="3" role="group" aria-labelledby="step-label-3">
+              <div class="step-label" id="step-label-3">3 · Tus datos</div>
+
+              <!-- Barra reducida pendiente (mobile) -->
+              <div class="step-pending-bar" data-step-pending="3" role="button" tabindex="0" aria-label="Paso 3: Tus datos">
+                <span>3 · Tus datos</span>
               </div>
-            </fieldset>
+
+              <div class="step-body" data-step-body="3">
+                <div class="form-grid">
+                  <label class="field">
+                    <span class="field-label">Nombre</span>
+                    <input name="name" autocomplete="name" placeholder="Tu nombre" required maxlength="80">
+                    <span class="field-error" data-error="name" hidden></span>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">WhatsApp</span>
+                    <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="300 000 0000" required
+                      maxlength="20">
+                    <span class="field-error" data-error="phone" hidden></span>
+                  </label>
+                  <label class="field field-wide">
+                    <span class="field-label">Notas <span class="optional">(opcional)</span></span>
+                    <textarea name="notes" rows="2" maxlength="500"
+                      placeholder="Diseño que te gustaría, referencias, alergias…"></textarea>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Resumen -->
@@ -310,7 +376,7 @@
                   <dt>Hora</dt>
                   <dd data-sum="time">—</dd>
                 </div>
-                <div>
+                <div class="summary-row-location">
                   <dt>Ubicación</dt>
                   <dd>La Flora <span class="summary-subtext">· Norte de Cali</span></dd>
                 </div>

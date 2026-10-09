@@ -23,6 +23,16 @@
   const q = (sel) => form.querySelector(sel);
 
   const ui = {
+    steps: [1, 2, 3].map((num) => ({
+      num,
+      el: q(`[data-step="${num}"]`),
+      collapsed: q(`[data-step-collapsed="${num}"]`),
+      pending: q(`[data-step-pending="${num}"]`),
+      body: q(`[data-step-body="${num}"]`),
+      title: q(`[data-step-title="${num}"]`),
+      meta: q(`[data-step-meta="${num}"]`),
+      edit: q(`[data-edit-step="${num}"]`),
+    })),
     categories: q("[data-service-categories]"),
     catHint: form.querySelector("[data-cat-swipe-hint]"),
     catWrap: form.querySelector(".service-categories-wrap"),
@@ -43,6 +53,7 @@
   };
 
   const state = {
+    activeStep: 1,
     config: null,
     dates: [],
     page: 0,
@@ -207,7 +218,121 @@
     }));
   }
 
+  function isMobileStepper() {
+    return window.innerWidth <= 1000;
+  }
+
+  function updateStepSummaries() {
+    const s = service();
+    const s1 = ui.steps.find((x) => x.num === 1);
+    if (s1) {
+      if (s1.title) s1.title.textContent = s ? s.name : "—";
+      if (s1.meta) {
+        const dur = formatDuration(s?.duration);
+        const pr = s?.price_label || "";
+        s1.meta.textContent = [dur, pr].filter(Boolean).join(" · ") || "Servicio en estudio";
+      }
+    }
+
+    const s2 = ui.steps.find((x) => x.num === 2);
+    if (s2) {
+      if (state.date && state.time) {
+        if (s2.title) s2.title.textContent = `${formatDateLong(state.date)} · ${formatTime(state.time)}`;
+        if (s2.meta) s2.meta.textContent = "Estudio La Flora · Norte de Cali";
+      } else if (state.date) {
+        if (s2.title) s2.title.textContent = `${formatDateLong(state.date)}`;
+        if (s2.meta) s2.meta.textContent = "Elige un horario disponible";
+      } else {
+        if (s2.title) s2.title.textContent = "—";
+        if (s2.meta) s2.meta.textContent = "—";
+      }
+    }
+  }
+
+  function applyStepClasses() {
+    ui.steps.forEach(({ num, el, collapsed, pending }) => {
+      if (!el) return;
+      el.classList.remove("is-active", "is-completed", "is-pending", "is-locked", "is-collapsed");
+
+      if (num === state.activeStep) {
+        el.classList.add("is-active");
+        if (collapsed) collapsed.hidden = true;
+        if (pending) pending.hidden = true;
+      } else if (num < state.activeStep) {
+        const hasData = (num === 1 && Boolean(state.serviceId)) ||
+                        (num === 2 && Boolean(state.date && state.time));
+        if (hasData) {
+          el.classList.add("is-completed");
+          if (collapsed) collapsed.hidden = false;
+          if (pending) pending.hidden = true;
+        } else {
+          el.classList.add("is-pending");
+          if (collapsed) collapsed.hidden = true;
+          if (pending) pending.hidden = false;
+        }
+      } else {
+        const hasData = (num === 2 && Boolean(state.date && state.time));
+        if (hasData) {
+          el.classList.add("is-completed");
+          if (collapsed) collapsed.hidden = false;
+          if (pending) pending.hidden = true;
+        } else {
+          el.classList.add("is-pending");
+          if (collapsed) collapsed.hidden = true;
+          if (pending) pending.hidden = false;
+        }
+      }
+    });
+    updateStepSummaries();
+  }
+
+  function setStep(stepNum, { scroll = false } = {}) {
+    state.activeStep = stepNum;
+    applyStepClasses();
+    if (scroll && isMobileStepper()) {
+      const target = ui.steps.find((s) => s.num === stepNum)?.el;
+      if (target) {
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          if (stepNum === 3) {
+            form.elements.name?.focus({ preventScroll: true });
+          }
+        }, 60);
+      }
+    }
+  }
+
+  function editStep(stepNum) {
+    setStep(stepNum, { scroll: true });
+  }
+
+  function onPendingClick(stepNum) {
+    if (stepNum === 2) {
+      if (!state.serviceId) {
+        clearError("service_id");
+        showError("service_id", "Elige un servicio para continuar.");
+        return;
+      }
+      setStep(2, { scroll: true });
+    } else if (stepNum === 3) {
+      if (!state.serviceId) {
+        clearError("service_id");
+        showError("service_id", "Elige un servicio para continuar.");
+        editStep(1);
+        return;
+      }
+      if (!state.date || !state.time) {
+        clearError("time");
+        showError("time", "Elige una fecha y una hora para continuar.");
+        editStep(2);
+        return;
+      }
+      setStep(3, { scroll: true });
+    }
+  }
+
   async function selectService(id, { scroll = false } = {}) {
+    const prevService = state.serviceId;
     state.serviceId = id;
     const s = state.config?.services.find((x) => x.id === id);
     if (s && s.category !== state.category) {
@@ -216,9 +341,18 @@
     const radio = ui.services.querySelector(`input[value="${CSS.escape(id)}"]`);
     if (radio) radio.checked = true;
     clearError("service_id");
-    state.time = null;
+
+    if (prevService !== id) {
+      state.time = null;
+    }
+
     renderSummary();
-    if (scroll) document.getElementById("agendar").scrollIntoView();
+    if (isMobileStepper()) {
+      setStep(2, { scroll: true });
+    } else {
+      updateStepSummaries();
+      if (scroll) document.getElementById("agendar")?.scrollIntoView({ behavior: "smooth" });
+    }
     await loadAvailability();
   }
 
@@ -332,6 +466,10 @@
         clearError("time");
         renderTimes();
         renderSummary();
+        updateStepSummaries();
+        if (isMobileStepper()) {
+          setStep(3, { scroll: true });
+        }
       });
       return btn;
     }));
@@ -485,8 +623,18 @@
     const errors = clientValidate();
     if (Object.keys(errors).length) {
       Object.entries(errors).forEach(([f, m]) => showError(f, m));
+      if (isMobileStepper()) {
+        ui.steps.forEach(({ el, body, collapsed, pending }) => {
+          if (!el) return;
+          el.classList.remove("is-pending", "is-collapsed");
+          el.classList.add("is-active");
+          if (body) body.hidden = false;
+          if (collapsed) collapsed.hidden = true;
+          if (pending) pending.hidden = true;
+        });
+      }
       const first = form.querySelector(".field-error:not([hidden])");
-      first?.closest("fieldset, .field")?.scrollIntoView({ block: "center" });
+      first?.closest(".booking-step, fieldset, .field")?.scrollIntoView({ block: "center" });
       return;
     }
     // Toda rama bloqueada dice qué pasó y deja una salida: nunca un callejón sin salida.
@@ -615,6 +763,8 @@
   function resetForNewBooking() {
     form.classList.remove("is-booked");
     ["name", "phone", "notes"].forEach((n) => { form.elements[n].value = ""; });
+    state.serviceId = null;
+    state.date = null;
     state.time = null;
     state.formToken = newFormToken();
     const locBox = form.querySelector("[data-success-location]");
@@ -623,6 +773,7 @@
     ui.summary.hidden = false;
     renderSummary();
     loadAvailability();
+    setStep(1, { scroll: true });
     document.getElementById("agendar").scrollIntoView({ behavior: "smooth" });
   }
 
@@ -730,6 +881,34 @@
         loadAvailability({ force: true });
       }
     });
+
+    ui.steps.forEach(({ collapsed, pending, edit, num }) => {
+      if (collapsed) {
+        collapsed.addEventListener("click", () => editStep(num));
+        collapsed.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            editStep(num);
+          }
+        });
+      }
+      if (pending) {
+        pending.addEventListener("click", () => onPendingClick(num));
+        pending.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onPendingClick(num);
+          }
+        });
+      }
+      if (edit) {
+        edit.addEventListener("click", (e) => {
+          e.stopPropagation();
+          editStep(num);
+        });
+      }
+    });
+    setStep(1);
   }
 
   init();

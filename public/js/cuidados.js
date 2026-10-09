@@ -1,6 +1,8 @@
 /* AC Luxury Aesthetics — Selector de pestañas para /cuidados */
 (function () {
   function initCuidados() {
+    const wrap = document.querySelector('.cuidados-tabs-wrap');
+    const nav = document.querySelector('.cuidados-tabs-nav');
     const tabs = document.querySelectorAll('[data-tab-target]');
     const panels = {
       unas: document.getElementById('panel-unas'),
@@ -10,11 +12,32 @@
 
     if (!tabs.length) return;
 
+    const hint = document.querySelector('[data-cuidados-swipe-hint]');
+
+    function updateScrollState() {
+      if (!nav || !wrap) return;
+      const { scrollLeft, scrollWidth, clientWidth } = nav;
+      const maxScroll = Math.round(scrollWidth - clientWidth);
+      const hasOverflow = maxScroll > 8;
+      const canScrollRight = hasOverflow && Math.round(scrollLeft) < maxScroll - 8;
+      const canScrollLeft = hasOverflow && Math.round(scrollLeft) > 8;
+      wrap.classList.toggle('can-scroll-right', canScrollRight);
+      wrap.classList.toggle('can-scroll-left', canScrollLeft);
+
+      if (hint) {
+        hint.hidden = !canScrollRight;
+        hint.classList.toggle('is-visible', canScrollRight);
+      }
+    }
+
     function selectTab(targetId) {
       tabs.forEach((tab) => {
         const isMatch = tab.dataset.tabTarget === targetId;
         tab.classList.toggle('is-active', isMatch);
         tab.setAttribute('aria-selected', String(isMatch));
+        if (isMatch && nav) {
+          tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
       });
 
       Object.entries(panels).forEach(([key, panel]) => {
@@ -28,6 +51,8 @@
           }
         }
       });
+
+      requestAnimationFrame(updateScrollState);
     }
 
     tabs.forEach((tab) => {
@@ -37,6 +62,12 @@
         if (target) selectTab(target);
       });
     });
+
+    if (nav) {
+      nav.addEventListener('scroll', updateScrollState, { passive: true });
+      window.addEventListener('resize', updateScrollState, { passive: true });
+      requestAnimationFrame(updateScrollState);
+    }
 
     const hash = window.location.hash.replace('#', '');
     if (['unas', 'mirada', 'retoque'].includes(hash)) {
