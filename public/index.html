@@ -8,6 +8,7 @@
   <meta name="description"
     content="Uñas, cejas y pestañas con acabado de salón, en el estudio de Angélica en Cali. Mira los trabajos de Angélica Castrillón y agenda tu cita en línea.">
   <meta name="theme-color" content="#eadfd9">
+  <link rel="canonical" href="https://ac-luxury-aesthetics.heisjuanda.workers.dev/">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="/img/icon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="/img/icon-180.png">
@@ -36,17 +37,257 @@
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "BeautySalon",
-    "name": "Luxury Aesthetics",
-    "alternateName": "AC Luxury Aesthetics",
-    "description": "Uñas, cejas y pestañas en el estudio de Angélica en Cali.",
-    "image": "/img/logo-ac-400.avif",
-    "founder": { "@type": "Person", "name": "Angélica Castrillón" },
-    "areaServed": { "@type": "City", "name": "Cali" },
-    "address": { "@type": "PostalAddress", "addressLocality": "Cali", "addressRegion": "Valle del Cauca", "addressCountry": "CO" },
-    "sameAs": [
-      "https://www.instagram.com/lashes_nails_a.c/",
-      "https://www.tiktok.com/@angelica.castrillon_"
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#website",
+        "url": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/",
+        "name": "Luxury Aesthetics",
+        "inLanguage": "es-CO",
+        "publisher": {
+          "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+        }
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#webpage",
+        "url": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/",
+        "name": "Luxury Aesthetics · Uñas, cejas y pestañas en Cali",
+        "isPartOf": {
+          "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#website"
+        },
+        "about": {
+          "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+        },
+        "inLanguage": "es-CO"
+      },
+      {
+        "@type": ["BeautySalon", "NailSalon"],
+        "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business",
+        "name": "Luxury Aesthetics",
+        "alternateName": [
+          "AC Luxury Aesthetics",
+          "Lashes & Nails A.C"
+        ],
+        "description": "Estudio privado de belleza en La Flora, Norte de Cali. Especialistas en uñas semipermanentes, acrílicas, polygel, lifting de pestañas y diseño de cejas con cita previa.",
+        "url": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/",
+        "telephone": "+573245967079",
+        "priceRange": "$$",
+        "currenciesAccepted": "COP",
+        "paymentAccepted": "Cash, Nequi, Bancolombia, Nu, Daviplata, Bre-B",
+        "image": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/img/og.jpg",
+        "logo": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/img/icon-512.png",
+        "founder": {
+          "@type": "Person",
+          "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#angelica",
+          "name": "Angélica Castrillón",
+          "jobTitle": "Master Nail Artist & Beauty Specialist",
+          "worksFor": {
+            "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+          }
+        },
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Calle 56 # 3AN-111, La Flora",
+          "addressLocality": "Cali",
+          "addressRegion": "Valle del Cauca",
+          "postalCode": "760046",
+          "addressCountry": "CO"
+        },
+        "geo": {
+          "@type": "GeoCoordinates",
+          "latitude": 3.4735,
+          "longitude": -76.5165
+        },
+        "areaServed": [
+          {
+            "@type": "City",
+            "name": "Cali",
+            "sameAs": "https://es.wikipedia.org/wiki/Cali"
+          },
+          {
+            "@type": "AdministrativeArea",
+            "name": "La Flora, Cali"
+          }
+        ],
+        "openingHoursSpecification": [
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": [
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday",
+              "Saturday"
+            ],
+            "opens": "08:00",
+            "closes": "18:00"
+          }
+        ],
+        "sameAs": [
+          "https://www.instagram.com/lashes_nails_a.c/",
+          "https://www.tiktok.com/@angelica.castrillon_"
+        ],
+        "potentialAction": {
+          "@type": "ReserveAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#agendar",
+            "inLanguage": "es-CO",
+            "actionPlatform": [
+              "http://schema.org/DesktopWebPlatform",
+              "http://schema.org/MobileWebPlatform"
+            ]
+          },
+          "result": {
+            "@type": "Reservation",
+            "name": "Reserva de cita en el estudio"
+          }
+        },
+        "hasOfferCatalog": {
+          "@type": "OfferCatalog",
+          "name": "Servicios de Belleza y Estética",
+          "itemListElement": [
+            {
+              "@type": "OfferCatalog",
+              "name": "Uñas",
+              "itemListElement": [
+                {
+                  "@type": "Service",
+                  "name": "Semipermanente",
+                  "description": "Esmaltado semipermanente de alta duración con preparación detallada de cutícula.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                },
+                {
+                  "@type": "Service",
+                  "name": "Uñas acrílicas",
+                  "description": "Extensión y esculpido de uñas en acrílico profesional con estructura resistente.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                },
+                {
+                  "@type": "Service",
+                  "name": "Polygel",
+                  "description": "Técnica híbrida liviana y flexible para extensiones y recubrimiento natural.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                },
+                {
+                  "@type": "Service",
+                  "name": "Nail art / diseño",
+                  "description": "Diseños personalizados a mano alzada y acabados artísticos.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                }
+              ]
+            },
+            {
+              "@type": "OfferCatalog",
+              "name": "Cejas",
+              "itemListElement": [
+                {
+                  "@type": "Service",
+                  "name": "Diseño de cejas",
+                  "description": "Visagismo, depilación y perfilado personalizado acorde a la morfología facial.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                },
+                {
+                  "@type": "Service",
+                  "name": "Laminado de cejas",
+                  "description": "Fijación y peinado semipermanente para cejas disciplinadas y definidas.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                },
+                {
+                  "@type": "Service",
+                  "name": "Henna",
+                  "description": "Pigmentación vegetal temporal para sombrear y definir la ceja.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                }
+              ]
+            },
+            {
+              "@type": "OfferCatalog",
+              "name": "Pestañas",
+              "itemListElement": [
+                {
+                  "@type": "Service",
+                  "name": "Lifting de pestañas",
+                  "description": "Curvatura natural, nutrición y tinte para realzar la mirada sin extensiones.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                },
+                {
+                  "@type": "Service",
+                  "name": "Extensiones pelo a pelo",
+                  "description": "Colocación fibra por fibra para un efecto natural y sutil.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                },
+                {
+                  "@type": "Service",
+                  "name": "Volumen",
+                  "description": "Abanicos livianos para máxima densidad y definición de mirada.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                }
+              ]
+            },
+            {
+              "@type": "OfferCatalog",
+              "name": "Combos",
+              "itemListElement": [
+                {
+                  "@type": "Service",
+                  "name": "Combo Uñas + Cejas",
+                  "description": "Sesión integral de manicura y diseño de cejas en una sola visita.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                },
+                {
+                  "@type": "Service",
+                  "name": "Combo Uñas + Pestañas",
+                  "description": "Atención completa de manicura y pestañas para manos y mirada.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                },
+                {
+                  "@type": "Service",
+                  "name": "Combo Cejas + Pestañas",
+                  "description": "Renovación total de mirada: cejas y pestañas.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                },
+                {
+                  "@type": "Service",
+                  "name": "Combo Triple",
+                  "description": "Experiencia boutique de belleza completa: uñas, cejas y pestañas.",
+                  "provider": {
+                    "@id": "https://ac-luxury-aesthetics.heisjuanda.workers.dev/#business"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
     ]
   }
   </script>
@@ -732,6 +973,13 @@
         <p class="payment-methods-text">Bre-B · Nequi · Bancolombia · Nu · Daviplata · Efectivo</p>
         <p class="footer-payments-note">Transferencias directas e inmediatas · Sin recargos</p>
       </div>
+
+      <!-- Navegación del pie de página -->
+      <nav class="footer-nav" aria-label="Enlaces del pie de página">
+        <a href="/cuidados" class="footer-nav-link">Guía de cuidados post-cita</a>
+        <span class="footer-nav-sep" aria-hidden="true">·</span>
+        <a href="#agendar" class="footer-nav-link">Agendar cita</a>
+      </nav>
 
       <ul class="footer-social">
         <li><a href="https://www.instagram.com/lashes_nails_a.c/" target="_blank" rel="noopener">Instagram</a></li>

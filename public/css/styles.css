@@ -2281,6 +2281,34 @@ fieldset {
   border-bottom-color: currentColor;
 }
 
+.footer-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 10px 0 16px;
+  font-size: 13.5px;
+  font-family: var(--font-body);
+}
+
+.footer-nav-link {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 400;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.footer-nav-link:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.footer-nav-sep {
+  color: var(--line);
+  user-select: none;
+}
+
 .footer-copy {
   font-size: 13px;
   color: var(--ink-soft);

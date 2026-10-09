@@ -2,3 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+
+Sitemap: https://ac-luxury-aesthetics.heisjuanda.workers.dev/sitemap.xml
+
