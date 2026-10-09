@@ -105,40 +105,51 @@
       </div>
     </section>
 
-    <!-- ============================================================ GUÍA INTERACTIVA -->
+    <!--  GUÍA INTERACTIVA -->
     <section class="section section-cream">
       <div class="container">
 
-        <!-- Pestañas de categoría (Select de opciones con SVGs) -->
-        <div class="cuidados-tabs-nav" role="tablist" aria-label="Categorías de cuidados">
-          <button class="cuidados-tab-btn is-active" id="tab-btn-unas" type="button" role="tab" aria-selected="true"
-            aria-controls="panel-unas" data-tab-target="unas">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="10" y="3" width="4" height="6.5" rx="1" />
-              <rect x="6" y="9.5" width="12" height="11.5" rx="2.5" />
-              <path d="M9.5 13.5v4" />
+        <div class="cuidados-tabs-header">
+          <span class="cuidados-tabs-tag">Guía por área</span>
+          <span class="cuidados-swipe-hint" data-cuidados-swipe-hint hidden aria-hidden="true">
+            Desliza
+            <svg class="icon icon-inline" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
-            <span>Uñas (Semi & Gel)</span>
-          </button>
+          </span>
+        </div>
 
-          <button class="cuidados-tab-btn" id="tab-btn-mirada" type="button" role="tab" aria-selected="false"
-            aria-controls="panel-mirada" data-tab-target="mirada">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3 11c3.5-5 9.5-6 18-2.5" stroke-width="2.2" stroke-linecap="round" />
-              <path d="M3.5 15c2.5 3 14.5 3 17 0" />
-              <path d="M5.5 16.5l-1.5 2M9 17.5l-.8 2.2M12 17.8v2.2M15 17.5l.8 2.2M18.5 16.5l1.5 2" />
-            </svg>
-            <span>Lifting & Cejas</span>
-          </button>
+        <div class="cuidados-tabs-wrap">
+          <div class="cuidados-tabs-nav" role="tablist" aria-label="Categorías de cuidados">
+            <button class="cuidados-tab-btn is-active" id="tab-btn-unas" type="button" role="tab" aria-selected="true"
+              aria-controls="panel-unas" data-tab-target="unas">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="10" y="3" width="4" height="6.5" rx="1" />
+                <rect x="6" y="9.5" width="12" height="11.5" rx="2.5" />
+                <path d="M9.5 13.5v4" />
+              </svg>
+              <span>Uñas (Semi & Gel)</span>
+            </button>
 
-          <button class="cuidados-tab-btn" id="tab-btn-retoque" type="button" role="tab" aria-selected="false"
-            aria-controls="panel-retoque" data-tab-target="retoque">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="3.5" y="5" width="17" height="15" rx="2" />
-              <path d="M3.5 10h17M8 3v4M16 3v4" />
-            </svg>
-            <span>Calendario de Retoque</span>
-          </button>
+            <button class="cuidados-tab-btn" id="tab-btn-mirada" type="button" role="tab" aria-selected="false"
+              aria-controls="panel-mirada" data-tab-target="mirada">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 11c3.5-5 9.5-6 18-2.5" stroke-width="2.2" stroke-linecap="round" />
+                <path d="M3.5 15c2.5 3 14.5 3 17 0" />
+                <path d="M5.5 16.5l-1.5 2M9 17.5l-.8 2.2M12 17.8v2.2M15 17.5l.8 2.2M18.5 16.5l1.5 2" />
+              </svg>
+              <span>Lifting & Cejas</span>
+            </button>
+
+            <button class="cuidados-tab-btn" id="tab-btn-retoque" type="button" role="tab" aria-selected="false"
+              aria-controls="panel-retoque" data-tab-target="retoque">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3.5" y="5" width="17" height="15" rx="2" />
+                <path d="M3.5 10h17M8 3v4M16 3v4" />
+              </svg>
+              <span>Calendario de Retoque</span>
+            </button>
+          </div>
         </div>
 
         <!-- PANEL 1: UÑAS -->
@@ -389,7 +400,7 @@
           </div>
           <div class="cuidados-cta-actions">
             <a class="btn btn-dark" href="/#agendar">
-              Agendar cita en el estudio
+              <span>Agendar cita en el estudio</span>
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
@@ -407,6 +418,14 @@
       <img class="footer-logo" src="/img/logo-ac-400.avif" alt="" width="72" height="72" loading="lazy">
       <p class="brand-name">Luxury Aesthetics</p>
       <p class="brand-tag">Uñas · Cejas · Pestañas · La Flora, Cali</p>
+
+      <!-- Medios de pago en estudio -->
+      <div class="footer-payments">
+        <p class="footer-payments-title">Pago en el estudio</p>
+        <p class="payment-methods-text">Bre-B · Nequi · Bancolombia · Nu · Daviplata · Efectivo</p>
+        <p class="footer-payments-note">Transferencias directas e inmediatas · Sin recargos</p>
+      </div>
+
       <ul class="footer-social">
         <li><a href="https://www.instagram.com/lashes_nails_a.c/" target="_blank" rel="noopener">Instagram</a></li>
         <li><a href="https://www.tiktok.com/@angelica.castrillon_" target="_blank" rel="noopener">TikTok</a></li>
