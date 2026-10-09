@@ -14,20 +14,26 @@
 
     const hint = document.querySelector('[data-cuidados-swipe-hint]');
 
+    let scrollTicking = false;
     function updateScrollState() {
-      if (!nav || !wrap) return;
-      const { scrollLeft, scrollWidth, clientWidth } = nav;
-      const maxScroll = Math.round(scrollWidth - clientWidth);
-      const hasOverflow = maxScroll > 8;
-      const canScrollRight = hasOverflow && Math.round(scrollLeft) < maxScroll - 8;
-      const canScrollLeft = hasOverflow && Math.round(scrollLeft) > 8;
-      wrap.classList.toggle('can-scroll-right', canScrollRight);
-      wrap.classList.toggle('can-scroll-left', canScrollLeft);
+      if (scrollTicking) return;
+      scrollTicking = true;
+      requestAnimationFrame(() => {
+        scrollTicking = false;
+        if (!nav || !wrap) return;
+        const { scrollLeft, scrollWidth, clientWidth } = nav;
+        const maxScroll = Math.round(scrollWidth - clientWidth);
+        const hasOverflow = maxScroll > 8;
+        const canScrollRight = hasOverflow && Math.round(scrollLeft) < maxScroll - 8;
+        const canScrollLeft = hasOverflow && Math.round(scrollLeft) > 8;
+        wrap.classList.toggle('can-scroll-right', canScrollRight);
+        wrap.classList.toggle('can-scroll-left', canScrollLeft);
 
-      if (hint) {
-        hint.hidden = !canScrollRight;
-        hint.classList.toggle('is-visible', canScrollRight);
-      }
+        if (hint) {
+          hint.hidden = !canScrollRight;
+          hint.classList.toggle('is-visible', canScrollRight);
+        }
+      });
     }
 
     function selectTab(targetId) {
@@ -79,6 +85,19 @@
       yearEl.textContent = new Date().getFullYear();
     }
   }
+
+  function initAsyncStylesheets() {
+    const switchMedia = (link) => {
+      if (link && link.media !== "all") link.media = "all";
+    };
+    document.querySelectorAll("link[data-async-css]").forEach((link) => {
+      link.addEventListener("load", () => switchMedia(link));
+      if (link.sheet) switchMedia(link);
+      setTimeout(() => switchMedia(link), 1500);
+    });
+  }
+
+  initAsyncStylesheets();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCuidados);

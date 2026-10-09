@@ -156,18 +156,66 @@ function initStickyBookingBar() {
     bookingObserver.observe(bookingSection);
     if (heroSection) heroObserver.observe(heroSection);
   } else {
+    let ticking = false;
     window.addEventListener("scroll", () => {
-      const rect = bookingSection.getBoundingClientRect();
-      const inBooking = rect.top < window.innerHeight && rect.bottom > 0;
-      bar.classList.toggle("is-hidden", inBooking || window.scrollY < 120);
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        const rect = bookingSection.getBoundingClientRect();
+        const inBooking = rect.top < window.innerHeight && rect.bottom > 0;
+        bar.classList.toggle("is-hidden", inBooking || window.scrollY < 120);
+      });
     }, { passive: true });
   }
 }
+
+/*  mapa diferido */
+function initLazyMap() {
+  const iframe = document.querySelector(".map-container iframe[data-src]");
+  if (!iframe) return;
+
+  const loadIframe = () => {
+    if (iframe.dataset.src) {
+      iframe.src = iframe.dataset.src;
+      iframe.removeAttribute("data-src");
+    }
+  };
+
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          loadIframe();
+          observer.disconnect();
+        }
+      });
+    }, { rootMargin: "400px 0px" });
+    observer.observe(iframe);
+  } else {
+    loadIframe();
+  }
+}
+
+/*  fuentes / css diferido */
+function initAsyncStylesheets() {
+  const switchMedia = (link) => {
+    if (link && link.media !== "all") link.media = "all";
+  };
+  document.querySelectorAll("link[data-async-css]").forEach((link) => {
+    link.addEventListener("load", () => switchMedia(link));
+    if (link.sheet) switchMedia(link);
+    setTimeout(() => switchMedia(link), 1500);
+  });
+}
+
+initAsyncStylesheets();
 
 document.addEventListener("DOMContentLoaded", () => {
   initNav();
   initPortfolio();
   initServices();
   initStickyBookingBar();
+  initLazyMap();
   $$("[data-year]").forEach((n) => { n.textContent = new Date().getFullYear(); });
 });

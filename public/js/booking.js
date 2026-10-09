@@ -125,24 +125,31 @@
     }
   }
 
+  let catScrollTicking = false;
   function updateCategoryScrollState() {
-    if (!ui.categories || ui.categories.clientWidth <= 0) return;
-    const { scrollLeft, scrollWidth, clientWidth } = ui.categories;
-    const maxScroll = Math.round(scrollWidth - clientWidth);
-    const hasOverflow = maxScroll > 12;
-    const canScrollRight = hasOverflow && Math.round(scrollLeft) < maxScroll - 12;
-    const canScrollLeft = hasOverflow && Math.round(scrollLeft) > 12;
+    if (catScrollTicking) return;
+    catScrollTicking = true;
+    requestAnimationFrame(() => {
+      catScrollTicking = false;
+      if (!ui.categories) return;
+      const { scrollLeft, scrollWidth, clientWidth } = ui.categories;
+      if (clientWidth <= 0) return;
+      const maxScroll = Math.round(scrollWidth - clientWidth);
+      const hasOverflow = maxScroll > 12;
+      const canScrollRight = hasOverflow && Math.round(scrollLeft) < maxScroll - 12;
+      const canScrollLeft = hasOverflow && Math.round(scrollLeft) > 12;
 
-    const wrap = ui.catWrap || ui.categories.closest(".service-categories-wrap");
-    if (wrap) {
-      wrap.classList.toggle("can-scroll-right", canScrollRight);
-      wrap.classList.toggle("can-scroll-left", canScrollLeft);
-    }
-    const hint = ui.catHint || form.querySelector("[data-cat-swipe-hint]");
-    if (hint) {
-      hint.hidden = !canScrollRight;
-      hint.classList.toggle("is-visible", canScrollRight);
-    }
+      const wrap = ui.catWrap || ui.categories.closest(".service-categories-wrap");
+      if (wrap) {
+        wrap.classList.toggle("can-scroll-right", canScrollRight);
+        wrap.classList.toggle("can-scroll-left", canScrollLeft);
+      }
+      const hint = ui.catHint || form.querySelector("[data-cat-swipe-hint]");
+      if (hint) {
+        hint.hidden = !canScrollRight;
+        hint.classList.toggle("is-visible", canScrollRight);
+      }
+    });
   }
 
   const CAT_ICONS = {
@@ -288,6 +295,7 @@
 
   function setStep(stepNum, { scroll = false } = {}) {
     state.activeStep = stepNum;
+    if (stepNum >= 2) ensureTurnstile();
     applyStepClasses();
     if (scroll && isMobileStepper()) {
       const target = ui.steps.find((s) => s.num === stepNum)?.el;
@@ -332,6 +340,7 @@
   }
 
   async function selectService(id, { scroll = false } = {}) {
+    ensureTurnstile();
     const prevService = state.serviceId;
     state.serviceId = id;
     const s = state.config?.services.find((x) => x.id === id);
@@ -484,6 +493,13 @@
     set("price", s?.price_label);
   }
 
+  let tsInitiated = false;
+  function ensureTurnstile() {
+    if (tsInitiated || !state.config) return;
+    tsInitiated = true;
+    initTurnstile();
+  }
+
   function initTurnstile() {
     const siteKey = state.config.turnstile_site_key;
     if (!siteKey) {
@@ -607,6 +623,10 @@
   }
 
   function gateCheck() {
+    if (!tsInitiated) {
+      ensureTurnstile();
+      return { blocked: true, text: TS_MSG.loading };
+    }
     if (state.tsStatus === TS.OFF) return { blocked: true, text: TS_MSG.noKey };
     if (state.tsStatus === TS.LOADING) return { blocked: true, text: TS_MSG.loading };
     if (state.tsToken) return { blocked: false };
@@ -795,7 +815,32 @@
     renderTimes();
     renderSummary();
     state.formToken = newFormToken();
-    initTurnstile();
+
+    // Carga diferida de Turnstile: no bloquea el hilo principal en la carga inicial
+    if ("IntersectionObserver" in window) {
+      const agendarSec = document.getElementById("agendar");
+      if (agendarSec) {
+        const tsObs = new IntersectionObserver((entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            ensureTurnstile();
+            tsObs.disconnect();
+          }
+        }, { rootMargin: "350px 0px" });
+        tsObs.observe(agendarSec);
+      }
+    }
+    form.addEventListener("focusin", ensureTurnstile, { once: true });
+    form.addEventListener("pointerdown", ensureTurnstile, { once: true });
+    document.addEventListener("click", (e) => {
+      if (e.target.closest('a[href="#agendar"], [data-book-category]')) {
+        ensureTurnstile();
+      }
+    }, { capture: true, passive: true });
+    if ("requestIdleCallback" in window) {
+      requestIdleCallback(ensureTurnstile, { timeout: 4000 });
+    } else {
+      setTimeout(ensureTurnstile, 4000);
+    }
 
     ui.prev.addEventListener("click", () => { state.page -= 1; renderDates(); });
     ui.next.addEventListener("click", () => { state.page += 1; renderDates(); });

@@ -22,9 +22,16 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet"
+  <link rel="preload" as="style"
     href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@300;400;500&display=swap">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@300;400;500&display=swap"
+    media="print" data-async-css>
+  <noscript>
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@300;400;500&display=swap">
+  </noscript>
+  <link rel="stylesheet" href="/css/styles.min.css?v=2">
 
   <script type="application/ld+json">
   {
@@ -43,8 +50,8 @@
     ]
   }
   </script>
-  <script src="/js/main.js" defer></script>
-  <script src="/js/booking.js" defer></script>
+  <script src="/js/main.min.js?v=2" defer></script>
+  <script src="/js/booking.min.js?v=2" defer></script>
 </head>
 
 <body>
@@ -54,7 +61,7 @@
   <header class="site-header" data-header>
     <div class="container header-inner">
       <a class="brand" href="#inicio" aria-label="Luxury Aesthetics, inicio">
-        <img class="brand-logo" src="/img/logo-ac-400.avif" alt="" width="44" height="44">
+        <img class="brand-logo" src="/img/logo-ac-400.avif" alt="" width="44" height="44" fetchpriority="high">
         <span class="brand-text">
           <span class="brand-name">Luxury Aesthetics</span>
           <span class="brand-tag">Uñas · Cejas · Pestañas</span>
@@ -588,8 +595,8 @@
 
             <div class="map-container">
               <iframe
-                src="https://www.openstreetmap.org/export/embed.html?bbox=-76.5205%2C3.4705%2C-76.5125%2C3.4765&amp;layer=mapnik&amp;marker=3.4735%2C-76.5165"
-                title="Punto de referencia: Iglesia de Todos los Santos, La Flora, Cali" loading="lazy">
+                data-src="https://www.openstreetmap.org/export/embed.html?bbox=-76.5205%2C3.4705%2C-76.5125%2C3.4765&amp;layer=mapnik&amp;marker=3.4735%2C-76.5165"
+                title="Punto de referencia: Iglesia de Todos los Santos, La Flora, Cali" loading="lazy" width="100%" height="100%">
               </iframe>
 
               <div class="map-overlay-pin" aria-hidden="true">

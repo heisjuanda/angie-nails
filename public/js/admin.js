@@ -15,6 +15,18 @@
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
   const state = { status: "", range: "upcoming", page: 1, total: 0, perPage: 0, bookings: [], refreshTimer: null, services: [], hours: {}, slotStep: 30, configLoaded: false, editing: null, editingBooking: null };
 
+  function initAsyncStylesheets() {
+    const switchMedia = (link) => {
+      if (link && link.media !== "all") link.media = "all";
+    };
+    document.querySelectorAll("link[data-async-css]").forEach((link) => {
+      link.addEventListener("load", () => switchMedia(link));
+      if (link.sheet) switchMedia(link);
+      setTimeout(() => switchMedia(link), 1500);
+    });
+  }
+  initAsyncStylesheets();
+
   function h(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {

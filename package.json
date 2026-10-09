@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "uv run pywrangler dev",
-    "deploy": "uv run pywrangler deploy",
+    "build:assets": "node_modules/.bin/esbuild public/css/styles.css --minify --outfile=public/css/styles.min.css && node_modules/.bin/esbuild public/css/admin.css --minify --outfile=public/css/admin.min.css && node_modules/.bin/esbuild public/js/main.js --minify --outfile=public/js/main.min.js && node_modules/.bin/esbuild public/js/booking.js --minify --outfile=public/js/booking.min.js && node_modules/.bin/esbuild public/js/cuidados.js --minify --outfile=public/js/cuidados.min.js && node_modules/.bin/esbuild public/js/admin.js --minify --outfile=public/js/admin.min.js",
+    "build": "npm run build:assets",
+    "dev": "npm run build:assets && uv run pywrangler dev",
+    "deploy": "npm run build:assets && uv run pywrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply ac-luxury-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply ac-luxury-db --remote",
     "test": "uv run pytest",
