@@ -1,4 +1,6 @@
 /* AC Luxury Aesthetics — Selector de pestañas para /cuidados */
+import { setupScrollAffordance } from './scroll-affordance.js';
+
 (function () {
   function initCuidados() {
     const wrap = document.querySelector('.cuidados-tabs-wrap');
@@ -13,28 +15,7 @@
     if (!tabs.length) return;
 
     const hint = document.querySelector('[data-cuidados-swipe-hint]');
-
-    let scrollTicking = false;
-    function updateScrollState() {
-      if (scrollTicking) return;
-      scrollTicking = true;
-      requestAnimationFrame(() => {
-        scrollTicking = false;
-        if (!nav || !wrap) return;
-        const { scrollLeft, scrollWidth, clientWidth } = nav;
-        const maxScroll = Math.round(scrollWidth - clientWidth);
-        const hasOverflow = maxScroll > 8;
-        const canScrollRight = hasOverflow && Math.round(scrollLeft) < maxScroll - 8;
-        const canScrollLeft = hasOverflow && Math.round(scrollLeft) > 8;
-        wrap.classList.toggle('can-scroll-right', canScrollRight);
-        wrap.classList.toggle('can-scroll-left', canScrollLeft);
-
-        if (hint) {
-          hint.hidden = !canScrollRight;
-          hint.classList.toggle('is-visible', canScrollRight);
-        }
-      });
-    }
+    const updateScrollState = setupScrollAffordance({ wrap, nav, hint, threshold: 8 });
 
     function selectTab(targetId) {
       tabs.forEach((tab) => {
@@ -58,7 +39,9 @@
         }
       });
 
-      requestAnimationFrame(updateScrollState);
+      if (updateScrollState) {
+        requestAnimationFrame(updateScrollState);
+      }
     }
 
     tabs.forEach((tab) => {
@@ -68,12 +51,6 @@
         if (target) selectTab(target);
       });
     });
-
-    if (nav) {
-      nav.addEventListener('scroll', updateScrollState, { passive: true });
-      window.addEventListener('resize', updateScrollState, { passive: true });
-      requestAnimationFrame(updateScrollState);
-    }
 
     const hash = window.location.hash.replace('#', '');
     if (['unas', 'mirada', 'retoque'].includes(hash)) {
@@ -99,8 +76,8 @@
 
   initAsyncStylesheets();
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCuidados);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initCuidados);
   } else {
     initCuidados();
   }
