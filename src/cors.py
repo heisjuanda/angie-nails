@@ -107,9 +107,21 @@ def is_admin_origin_allowed(origin: str | None, env=None, request_url: str | Non
     return False
 
 
+def _is_admin_request(request_url: str | None) -> bool:
+    if not request_url:
+        return False
+    path = urlparse(request_url).path.rstrip("/")
+    return path == "/api/admin" or path.startswith("/api/admin/")
+
+
 def get_cors_headers(origin: str | None, env=None, request_url: str | None = None) -> dict[str, str]:
     """Devuelve los encabezados CORS correspondientes solo si el origen está permitido."""
-    if not is_allowed_origin(origin, env, request_url):
+    allowed = (
+        is_admin_origin_allowed(origin, env, request_url)
+        if _is_admin_request(request_url)
+        else is_allowed_origin(origin, env, request_url)
+    )
+    if not allowed:
         return {}
 
     return {
@@ -121,21 +133,18 @@ def get_cors_headers(origin: str | None, env=None, request_url: str | None = Non
 
 def preflight_response(origin: str | None, env=None, request_url: str | None = None):
     """Responde a peticiones preflight OPTIONS."""
-    from responses import error
-    from workers import Response
+    from responses import BASE_HEADERS, Response, error
 
-    if not is_allowed_origin(origin, env, request_url):
+    cors_headers = get_cors_headers(origin, env, request_url)
+    if not cors_headers:
         return error(403, "Origen no permitido.")
 
-    norm = origin.strip().rstrip("/")
     headers = {
-        "access-control-allow-origin": norm,
+        **BASE_HEADERS,
+        **cors_headers,
         "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
         "access-control-allow-headers": "Content-Type, Authorization, X-Requested-With",
-        "access-control-allow-credentials": "true",
         "access-control-max-age": "86400",
-        "vary": "Origin",
-        "cache-control": "no-store",
     }
     return Response(None, status=204, headers=headers)
 
@@ -145,20 +154,26 @@ def apply_cors(response, origin: str | None, env=None, request_url: str | None =
     if not response or not origin:
         return response
 
-    if not is_allowed_origin(origin, env, request_url):
+    cors_headers = get_cors_headers(origin, env, request_url)
+    if not cors_headers:
         return response
 
-    norm = origin.strip().rstrip("/")
     try:
         js_headers = getattr(getattr(response, "js_object", None), "headers", None)
         if js_headers and hasattr(js_headers, "set"):
-            js_headers.set("access-control-allow-origin", norm)
-            js_headers.set("access-control-allow-credentials", "true")
-            if hasattr(js_headers, "append"):
-                js_headers.append("vary", "Origin")
-            else:
-                js_headers.set("vary", "Origin")
+            for key, value in cors_headers.items():
+                if key == "vary" and hasattr(js_headers, "append"):
+                    js_headers.append(key, value)
+                else:
+                    js_headers.set(key, value)
+        elif isinstance(getattr(response, "headers", None), dict):
+            for key, value in cors_headers.items():
+                if key == "vary" and key in response.headers and response.headers[key] != value:
+                    response.headers[key] = f"{response.headers[key]}, {value}"
+                else:
+                    response.headers[key] = value
     except Exception:
         pass
 
     return response
+

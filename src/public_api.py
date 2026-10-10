@@ -36,7 +36,7 @@ def get_config(env):
 
 async def get_availability(env, qs: dict):
     """?service=<id>&from=YYYY-MM-DD&days=N → horarios por día."""
-    service = config.resolve_service((qs.get("service") or [""])[0])
+    service = config.resolve_service((qs.get("service") or [""])[0], allow_bare_combo=True)
     if not service:
         return error(400, "Servicio inválido.")
 

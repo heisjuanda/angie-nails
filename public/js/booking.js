@@ -931,6 +931,7 @@
       if (res.status === 422 && data.fields) Object.entries(data.fields).forEach(([f, m]) => showError(f, m));
       if (res.status === 409) {
         state.time = null;
+        state.slots.clear();
         await loadAvailability({ force: true });
       }
       setMessage(data.error || "No pudimos agendar la cita. Intenta de nuevo.", { link: data.whatsapp_url });
@@ -994,7 +995,7 @@
         const pad = (n) => String(n).padStart(2, "0");
         const fmtG = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
         const locStr = data.location ? `${data.location.address}, ${data.location.neighborhood}, Cali` : "La Flora, Cali";
-        const detailsStr = `Cita confirmada en AC Luxury Aesthetics.\nCódigo: ${data.code}\nServicio: ${sName}\nHorario: ${dText}\nDirección: ${locStr}\n\nGuía de Cuidados: https://angienails.com/cuidados`;
+        const detailsStr = `Cita confirmada en AC Luxury Aesthetics.\nCódigo: ${data.code}\nServicio: ${sName}\nHorario: ${dText}\nDirección: ${locStr}\n\nGuía de Cuidados: ${window.location.origin}/cuidados/`;
         calBtn.href = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Cita: ${sName} · AC Luxury Aesthetics`)}&dates=${fmtG(start)}/${fmtG(end)}&details=${encodeURIComponent(detailsStr)}&location=${encodeURIComponent(locStr)}`;
         calBtn.hidden = false;
       } catch (e) {
@@ -1019,8 +1020,7 @@
     ui.summary.hidden = true;
     ui.success.hidden = false;
     ui.success.focus();
-    if (s) state.slots.delete(s.id);
-    state.slots.delete(state.serviceId);
+    state.slots.clear();
     document.getElementById("agendar")?.scrollIntoView({ behavior: "smooth" });
   }
 

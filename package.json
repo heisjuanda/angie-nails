@@ -9,8 +9,8 @@
     "deploy": "npm run build:assets && uv run pywrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply ac-luxury-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply ac-luxury-db --remote",
-    "test": "uv run pytest",
-    "test:unit": "uv run pytest tests/unit",
+    "test": "npm run build:assets && uv run pytest",
+    "test:unit": "npm run build:assets && uv run pytest tests/unit",
     "test:smoke": "uv run pytest -m smoke"
   },
   "devDependencies": {

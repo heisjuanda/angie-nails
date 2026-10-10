@@ -109,6 +109,13 @@ def test_validate_booking_resolves_composite_combo_id():
 
 
 def test_validate_booking_rejects_incomplete_or_mismatched_combo():
+    with pytest.raises(ValidationError) as e0:
+        validate_booking({
+            **VALID,
+            "service_id": "combo-unas-cejas",
+        })
+    assert e0.value.errors.get("service_id") == "Elige los servicios que deseas incluir en tu combo."
+
     with pytest.raises(ValidationError) as e1:
         validate_booking({
             **VALID,
@@ -124,4 +131,12 @@ def test_validate_booking_rejects_incomplete_or_mismatched_combo():
             "combo_selections": {"unas": "semipermanente", "cejas": "lifting"},
         })
     assert "service_id" in e2.value.errors
+
+    with pytest.raises(ValidationError) as e3:
+        validate_booking({
+            **VALID,
+            "service_id": "combo-unas-cejas:semipermanente+diseno-cejas",
+            "combo_selections": {"unas": "acrilicas", "cejas": "no-existe"},
+        })
+    assert e3.value.errors.get("service_id") == "Elige los servicios que deseas incluir en tu combo."
 

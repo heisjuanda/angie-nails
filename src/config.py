@@ -115,7 +115,7 @@ ALL_SERVICES = BUNDLES + SERVICES
 SERVICES_BY_ID = {s["id"]: s for s in ALL_SERVICES}
 
 
-def resolve_service(raw_service_id: str, combo_selections=None) -> dict | None:
+def resolve_service(raw_service_id: str, combo_selections=None, *, allow_bare_combo: bool = False) -> dict | None:
     """Resuelve un servicio individual o un combo con sus sub-servicios seleccionados."""
     if not isinstance(raw_service_id, str) or not raw_service_id.strip():
         return None
@@ -126,23 +126,38 @@ def resolve_service(raw_service_id: str, combo_selections=None) -> dict | None:
 
     components = base.get("components")
     if not components:
-        if sep or combo_selections:
+        if sep or combo_selections is not None:
             return None
         return {**base, "base_id": base["id"], "sub_services": []}
 
-    parts: list[str] | None = None
+    suffix_parts: list[str] | None = None
     if sep:
-        parts = [p.strip() for p in suffix.split("+") if p.strip()]
-    elif combo_selections is not None:
+        suffix_parts = [p.strip() for p in suffix.split("+")]
+
+    selection_parts: list[str] | None = None
+    if combo_selections is not None:
         if isinstance(combo_selections, dict):
-            parts = [str(combo_selections.get(cat) or "").strip() for cat in components]
+            if any(k not in components for k in combo_selections):
+                return None
+            selection_parts = [str(combo_selections.get(cat) or "").strip() for cat in components]
         elif isinstance(combo_selections, (list, tuple)):
-            parts = [str(x or "").strip() for x in combo_selections]
+            selection_parts = [str(x or "").strip() for x in combo_selections]
         else:
             return None
 
+    if suffix_parts is not None and selection_parts is not None:
+        if suffix_parts != selection_parts:
+            return None
+        parts = suffix_parts
+    elif suffix_parts is not None:
+        parts = suffix_parts
+    else:
+        parts = selection_parts
+
     if parts is None:
-        return {**base, "base_id": base["id"], "sub_services": []}
+        if allow_bare_combo:
+            return {**base, "base_id": base["id"], "sub_services": []}
+        return None
 
     if len(parts) != len(components) or any(not p for p in parts):
         return None

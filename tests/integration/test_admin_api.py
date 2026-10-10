@@ -91,6 +91,26 @@ def test_login_requires_same_origin(server, origin):
         r = c.post("/api/admin/login", json={"password": server.admin_password})
         assert r.status_code == 403
         assert "set-cookie" not in r.headers
+        assert "access-control-allow-origin" not in r.headers
+
+
+def test_admin_preflight_requires_strict_origin(server):
+    with httpx.Client(base_url=server.base_url) as c:
+        # Puerto local distinto al del servidor es rechazado en /api/admin/*
+        r_bad_port = c.options("/api/admin/login", headers={"origin": "http://127.0.0.1:1"})
+        assert r_bad_port.status_code == 403
+        assert "access-control-allow-origin" not in r_bad_port.headers
+
+        # Mismo origen exacto del servidor es permitido y devuelve BASE_HEADERS
+        r_ok = c.options("/api/admin/login", headers={"origin": server.base_url})
+        assert r_ok.status_code == 204
+        assert r_ok.headers["access-control-allow-origin"] == server.base_url
+        assert r_ok.headers["access-control-allow-credentials"] == "true"
+        assert r_ok.headers["x-content-type-options"] == "nosniff"
+        assert r_ok.headers["x-frame-options"] == "DENY"
+        assert r_ok.headers["strict-transport-security"] == "max-age=31536000"
+        assert r_ok.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+
 
 
 #  segundo factor
@@ -470,17 +490,21 @@ def test_edit_moves_the_booking_to_a_new_slot(api, admin, server, free_day):
 
 def test_edit_changes_service_duration_and_price(api, admin, server, free_day):
     code = _book(api, free_day, "08:00", service="semipermanente")
-    r = admin.patch(f"/api/admin/bookings/{code}", json={"service_id": "combo-triple"})
+    assert admin.patch(f"/api/admin/bookings/{code}", json={"service_id": "combo-triple"}).status_code == 422
+
+    expected_id = "combo-triple:semipermanente+diseno-cejas+pelo-a-pelo"
+    expected_name = "Combo Triple (Semipermanente + Diseño de cejas + Extensiones pelo a pelo)"
+    r = admin.patch(f"/api/admin/bookings/{code}", json={"service_id": expected_id})
     assert r.status_code == 200, r.text
     booking = r.json()["booking"]
-    assert booking["service_id"] == "combo-triple"
-    assert booking["service_name"] == "Combo Triple"
+    assert booking["service_id"] == expected_id
+    assert booking["service_name"] == expected_name
     assert booking["category"] == "combos"
     assert booking["end"] == "11:30"          # 08:00 + 210 min
     row = server.sql(
         f"SELECT service_id, service_name, category, duration_min, end_min, busy_until_min "
         f"FROM bookings WHERE code = '{code}'")[0]
-    assert row == {"service_id": "combo-triple", "service_name": "Combo Triple",
+    assert row == {"service_id": expected_id, "service_name": expected_name,
                    "category": "combos", "duration_min": 210, "end_min": 690,
                    "busy_until_min": 690}
 

@@ -1,4 +1,15 @@
-from workers import Response
+try:
+    from workers import Response
+except ModuleNotFoundError:
+    class Response:  # Fallback para pruebas unitarias fuera de Pyodide
+        def __init__(self, body=None, status: int = 200, headers: dict | None = None):
+            self.body = body
+            self.status = status
+            self.headers = dict(headers or {})
+
+        @classmethod
+        def json(cls, data, status: int = 200, headers: dict | None = None):
+            return cls(data, status=status, headers=headers)
 
 BASE_HEADERS = {
     "cache-control": "no-store",

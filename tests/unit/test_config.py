@@ -124,11 +124,20 @@ def test_resolve_service_supports_composite_and_dict_combo_selections():
     )
     assert by_dict == by_composite
 
-    # Categoría incorrecta o selección incompleta se rechaza
+    # Categoría incorrecta, selección incompleta o contradictoria se rechaza
     assert config.resolve_service("combo-unas-cejas:lifting+laminado-cejas") is None
     assert config.resolve_service("combo-unas-cejas", {"unas": "acrilicas"}) is None
     assert config.resolve_service("combo-unas-cejas:acrilicas") is None
-    # Cuando no se envían sub-servicios (compatibilidad base), devuelve el combo base
-    preview = config.resolve_service("combo-unas-cejas")
-    assert preview is not None and preview["id"] == "combo-unas-cejas"
+    assert config.resolve_service(
+        "combo-unas-cejas:acrilicas+laminado-cejas",
+        {"unas": "semipermanente", "cejas": "laminado-cejas"},
+    ) is None
+    assert config.resolve_service(
+        "combo-unas-cejas:acrilicas+laminado-cejas",
+        {"unas": "acrilicas", "cejas": "no-existe"},
+    ) is None
+    # Sin sub-servicios se rechaza por defecto, salvo con allow_bare_combo=True (disponibilidad)
+    assert config.resolve_service("combo-unas-cejas") is None
+    preview = config.resolve_service("combo-unas-cejas", allow_bare_combo=True)
+    assert preview is not None and preview["id"] == "combo-unas-cejas" and preview["sub_services"] == []
 

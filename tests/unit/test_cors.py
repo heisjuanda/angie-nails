@@ -81,3 +81,91 @@ def test_get_cors_headers():
 
     assert cors.get_cors_headers("https://evil.com") == {}
 
+    # En rutas públicas se permite cualquier puerto de localhost, pero en /api/admin/* solo el mismo puerto
+    assert cors.get_cors_headers("http://127.0.0.1:1", request_url="http://127.0.0.1:8791/api/availability") != {}
+    assert cors.get_cors_headers("http://127.0.0.1:1", request_url="http://127.0.0.1:8791/api/admin/login") == {}
+    assert cors.get_cors_headers("http://127.0.0.1:8791", request_url="http://127.0.0.1:8791/api/admin/login") != {}
+
+
+def test_preflight_response_allowed_includes_base_and_cors_headers():
+    from responses import BASE_HEADERS
+
+    origin = "http://127.0.0.1:5173"
+    resp = cors.preflight_response(origin, request_url="http://127.0.0.1:8791/api/bookings")
+    assert resp.status == 204
+    for key, val in BASE_HEADERS.items():
+        assert resp.headers[key] == val
+    assert resp.headers["access-control-allow-origin"] == origin
+    assert resp.headers["access-control-allow-credentials"] == "true"
+    assert "OPTIONS" in resp.headers["access-control-allow-methods"]
+    assert "Content-Type" in resp.headers["access-control-allow-headers"]
+    assert resp.headers["access-control-max-age"] == "86400"
+    assert resp.headers["vary"] == "Origin"
+
+
+def test_preflight_response_rejects_disallowed_and_mismatched_admin_origins():
+    from responses import BASE_HEADERS
+
+    # Origen malicioso en ruta pública
+    bad_public = cors.preflight_response("https://evil.com", request_url="http://127.0.0.1:8791/api/bookings")
+    assert bad_public.status == 403
+    assert "access-control-allow-origin" not in bad_public.headers
+    for key, val in BASE_HEADERS.items():
+        assert bad_public.headers[key] == val
+
+    # Puerto local distinto en ruta /api/admin/* debe ser rechazado en preflight
+    bad_admin = cors.preflight_response("http://127.0.0.1:1", request_url="http://127.0.0.1:8791/api/admin/login")
+    assert bad_admin.status == 403
+    assert "access-control-allow-origin" not in bad_admin.headers
+
+    # Mismo puerto exacto en ruta /api/admin/* es aceptado
+    ok_admin = cors.preflight_response("http://127.0.0.1:8791", request_url="http://127.0.0.1:8791/api/admin/login")
+    assert ok_admin.status == 204
+    assert ok_admin.headers["access-control-allow-origin"] == "http://127.0.0.1:8791"
+    for key, val in BASE_HEADERS.items():
+        assert ok_admin.headers[key] == val
+
+
+def test_apply_cors_with_dict_and_js_headers():
+    from responses import Response
+
+    # 1. Respuesta con diccionario de headers en ruta pública
+    r_pub = cors.apply_cors(
+        Response({"ok": True}, status=200),
+        "http://127.0.0.1:1",
+        request_url="http://127.0.0.1:8791/api/config",
+    )
+    assert r_pub.headers["access-control-allow-origin"] == "http://127.0.0.1:1"
+    assert r_pub.headers["access-control-allow-credentials"] == "true"
+    assert r_pub.headers["vary"] == "Origin"
+
+    # 2. En ruta /api/admin/* no debe inyectar cabeceras CORS a un puerto local distinto
+    r_admin_bad = cors.apply_cors(
+        Response({"error": "Origen no permitido."}, status=403),
+        "http://127.0.0.1:1",
+        request_url="http://127.0.0.1:8791/api/admin/login",
+    )
+    assert "access-control-allow-origin" not in r_admin_bad.headers
+
+    # 3. Simulación del objeto js_object.headers del runtime de Cloudflare Workers
+    class FakeJsHeaders:
+        def __init__(self):
+            self.store = {}
+
+        def set(self, k, v):
+            self.store[k] = v
+
+        def append(self, k, v):
+            self.store[k] = f"{self.store[k]}, {v}" if k in self.store else v
+
+    js_h = FakeJsHeaders()
+    fake_worker_resp = SimpleNamespace(js_object=SimpleNamespace(headers=js_h))
+    cors.apply_cors(
+        fake_worker_resp,
+        "http://127.0.0.1:8791",
+        request_url="http://127.0.0.1:8791/api/admin/login",
+    )
+    assert js_h.store["access-control-allow-origin"] == "http://127.0.0.1:8791"
+    assert js_h.store["access-control-allow-credentials"] == "true"
+    assert js_h.store["vary"] == "Origin"
+

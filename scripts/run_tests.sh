@@ -28,4 +28,5 @@ export PATH="$HOME/.local/bin:$HOME/.nvm/versions/node/v24.21.0/bin:$PATH"
 
 cd "$(dirname "$0")/.."
 
+npm run build:assets --silent
 exec uv run pytest "$@"

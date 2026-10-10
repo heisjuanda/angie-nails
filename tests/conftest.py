@@ -161,6 +161,24 @@ def run_wrangler(args: list[str], timeout: float = 180) -> str:
     return text
 
 
+def build_assets() -> None:
+    """Compila los .min.js y .min.css desde sus fuentes antes de servir public/."""
+    pkg = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+    for step in pkg["scripts"]["build:assets"].split("&&"):
+        parts = step.strip().split()
+        if not parts:
+            continue
+        bin_rel = f"{parts[0]}.cmd" if os.name == "nt" and (ROOT / f"{parts[0]}.cmd").exists() else parts[0]
+        cmd = [str(ROOT / bin_rel), *parts[1:]]
+        res = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, env=WRANGLER_ENV)
+        if res.returncode != 0:
+            raise RuntimeError(f"build:assets falló ({' '.join(parts)}):\n{res.stdout}\n{res.stderr}")
+
+
+def pytest_sessionstart(session) -> None:
+    build_assets()
+
+
 @dataclass
 class Instance:
     name: str
@@ -221,12 +239,15 @@ class Instance:
         while time.time() < deadline:
             if self.proc.poll() is not None:
                 raise RuntimeError(f"wrangler dev ({self.name}) terminó:\n{self.log_path.read_text(encoding='utf-8')[-3000:]}")
+            if "Ready on" not in self.log_path.read_text(encoding="utf-8", errors="replace"):
+                time.sleep(0.5)
+                continue
             try:
-                if httpx.get(f"{self.base_url}/api/config", timeout=5).status_code == 200:
+                if httpx.get(f"{self.base_url}/api/config", timeout=10).status_code == 200:
                     return
             except httpx.HTTPError:
                 pass
-            time.sleep(1)
+            time.sleep(0.5)
         raise TimeoutError(f"wrangler dev ({self.name}) no respondió:\n{self.log_path.read_text(encoding='utf-8')[-3000:]}")
 
     def stop(self) -> None:
@@ -270,7 +291,6 @@ def _instances():
             inst.prepare()
         for inst in instances:
             inst.start()
-        for inst in instances:
             inst.wait_ready()
         yield {i.name: i for i in instances}
     finally:

@@ -116,9 +116,12 @@ def test_parse_edit_time_only():
 
 
 def test_parse_edit_service_only_keeps_the_time():
-    edit = al.parse_booking_edit({"service_id": "combo-triple"}, ROW)
-    assert edit["service_id"] == "combo-triple"
-    assert edit["service_name"] == "Combo Triple"
+    edit = al.parse_booking_edit(
+        {"service_id": "combo-triple:semipermanente+diseno-cejas+pelo-a-pelo"},
+        ROW,
+    )
+    assert edit["service_id"] == "combo-triple:semipermanente+diseno-cejas+pelo-a-pelo"
+    assert edit["service_name"] == "Combo Triple (Semipermanente + Diseño de cejas + Extensiones pelo a pelo)"
     assert edit["category"] == "combos"
     assert edit["duration_min"] == config.DURACION_TRIPLE_X
     assert edit["start_min"] == 540                 # horario actual
@@ -152,9 +155,10 @@ def test_parse_edit_rejects_invalid_time(time):
         al.parse_booking_edit({"time": time}, ROW)
 
 
-def test_parse_edit_rejects_unknown_service():
+@pytest.mark.parametrize("bad_service", ["no-existe", "combo-triple", "combo-unas-cejas"])
+def test_parse_edit_rejects_unknown_or_bare_combo_service(bad_service):
     with pytest.raises(al.AdminError) as e:
-        al.parse_booking_edit({"service_id": "no-existe"}, ROW)
+        al.parse_booking_edit({"service_id": bad_service}, ROW)
     assert e.value.status == 422
 
 

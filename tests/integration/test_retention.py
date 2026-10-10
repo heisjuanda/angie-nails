@@ -1,7 +1,8 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 
+import availability
 import config
 from helpers import booking_payload
 
@@ -9,8 +10,9 @@ pytestmark = pytest.mark.integration
 
 
 def test_purge_removes_only_rows_older_than_retention(server, api, free_day):
-    old = (date.today() - timedelta(days=config.RETENTION_DAYS + 1)).isoformat()
-    recent = (date.today() + timedelta(days=2)).isoformat()
+    today = availability.now_local().date()
+    old = (today - timedelta(days=config.RETENTION_DAYS + 1)).isoformat()
+    recent = (today - timedelta(days=config.RETENTION_DAYS)).isoformat()
     server.sql(
         "INSERT INTO bookings (code, service_id, service_name, category, price, duration_min, "
         "date, start_min, end_min, busy_until_min, customer_name, phone, neighborhood, address, "

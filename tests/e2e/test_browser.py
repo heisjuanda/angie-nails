@@ -22,8 +22,11 @@ def browser():
     with sync_api.sync_playwright() as p:
         try:
             b = p.chromium.launch(channel="msedge")
-        except Exception as e:  # pragma: no cover
-            pytest.skip(f"Microsoft Edge no disponible: {e}")
+        except Exception:
+            try:
+                b = p.chromium.launch()
+            except Exception as e:  # pragma: no cover
+                pytest.skip(f"Navegador Chromium/Edge no disponible: {e}")
         yield b
         b.close()
 
@@ -141,6 +144,30 @@ def test_customer_books_from_phone(mobile, server, free_day):
     assert re.fullmatch(r"AC-[A-Z0-9]{5}", code)
     href = page.get_attribute("[data-success-link]", "href")
     assert href.startswith("https://wa.me/") and code in href
+
+    # Enlace a Google Calendar con el origen actual para /cuidados/
+    assert page.locator("[data-success-gcal]").is_visible()
+    gcal_href = page.get_attribute("[data-success-gcal]", "href")
+    assert gcal_href.startswith("https://calendar.google.com/calendar/render?")
+    gcal_qs = urllib.parse.parse_qs(urllib.parse.urlparse(gcal_href).query)
+    gcal_details = gcal_qs["details"][0]
+    assert code in gcal_details
+    assert "Semipermanente" in gcal_details
+    assert f"{server.base_url}/cuidados/" in gcal_details
+    assert "angienails.com" not in gcal_details
+
+    # Tarjeta de ubicación y enlaces de navegación
+    assert page.locator("[data-success-location]").is_visible()
+    assert page.text_content("[data-success-address]") == config.ESTUDIO_DIRECCION
+    assert config.ESTUDIO_BARRIO in page.text_content("[data-success-ref]")
+    assert page.get_attribute("[data-success-maps]", "href") == config.ESTUDIO_MAPS_URL
+    assert page.get_attribute("[data-success-waze]", "href") == config.ESTUDIO_WAZE_URL
+
+    # Botón de copiar código de cita
+    page.click("[data-copy-code]")
+    assert page.text_content("[data-copy-status]") == "¡Copiado!"
+    assert "is-copied" in (page.get_attribute("[data-copy-code]", "class") or "")
+
     row = server.sql(f"SELECT customer_name, phone, status FROM bookings WHERE code = '{code}'")[0]
     assert row == {"customer_name": "Clienta Navegador", "phone": "573112223344", "status": "pending"}
     assert mobile.errors == [] and mobile.http_errors == []
@@ -185,6 +212,9 @@ def test_booking_says_so_when_turnstile_script_is_blocked(mobile, server, free_d
 def test_booking_again_rotates_the_key(mobile, server, free_day):
     page = mobile.page
     open_booking(page)
+    # Consulta Polygel primero para poblar su caché de disponibilidad con las 08:00 libres.
+    pick(page, free_day, "08:00", "Polygel")
+    page.click("[data-edit-step='1']")
     pick(page, free_day, "08:00", "Semipermanente")
     fill_customer(page)
     wait_turnstile(page)
@@ -195,6 +225,8 @@ def test_booking_again_rotates_the_key(mobile, server, free_day):
     page.click("[data-new-booking]")
     page.wait_for_selector("[data-success]", state="hidden")
     pick(page, free_day, "11:00", "Polygel")
+    # El cupo de las 08:00 ocupado por Semipermanente no debe seguir libre en la caché de Polygel.
+    assert page.locator(".time-btn[aria-label='8:00 a. m., no disponible']").count() == 1
     fill_customer(page, phone="322 555 6677")
     wait_turnstile(page)
     page.click("[data-submit]")
@@ -323,12 +355,40 @@ def test_book_category_button_preselects_service(desktop):
     assert page.text_content("[data-sum=service]") == "Extensiones pelo a pelo"
 
 
-@pytest.mark.parametrize("path", ["/", "/admin/"])
+@pytest.mark.parametrize("path", ["/", "/cuidados/", "/preguntas-frecuentes/", "/admin/"])
 def test_no_horizontal_overflow_on_phone(mobile, path):
     mobile.page.goto(path, wait_until="load")
     mobile.page.wait_for_timeout(500)
     assert mobile.page.evaluate("document.documentElement.scrollWidth") <= 390
     assert mobile.errors == [] and mobile.http_errors == []
+
+
+def test_cuidados_and_faq_pages_interaction_and_csp(mobile):
+    page = mobile.page
+
+    # /cuidados/: cambio de pestañas (cuidados.js + scroll-affordance.js)
+    page.goto("/cuidados/#mirada", wait_until="load")
+    assert page.locator("#tab-btn-mirada").get_attribute("aria-selected") == "true"
+    assert page.locator("#panel-mirada").is_visible()
+    assert page.locator("#panel-unas").is_hidden()
+
+    page.click("#tab-btn-retoque")
+    assert page.locator("#tab-btn-retoque").get_attribute("aria-selected") == "true"
+    assert page.locator("#panel-retoque").is_visible()
+    assert page.locator("#panel-mirada").is_hidden()
+
+    # /preguntas-frecuentes/: apertura automática por hash y estilos externos (faq.js + scroll-affordance.js)
+    page.goto("/preguntas-frecuentes/#como-agendar", wait_until="load")
+    item = page.locator("#como-agendar")
+    assert item.get_attribute("open") is not None
+    assert mobile.errors == [] and mobile.http_errors == []
+
+    # Si alguien inyecta un <style> inline, la CSP del navegador lo bloquea y el colector lo detecta.
+    page.evaluate(
+        "() => { const s = document.createElement('style'); s.textContent = '.faq-item { color: red }'; document.head.appendChild(s); }"
+    )
+    assert any("Content Security Policy" in e for e in mobile.errors)
+    mobile.errors.clear()
 
 
 def test_portfolio_filter(desktop):

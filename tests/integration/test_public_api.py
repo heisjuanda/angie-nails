@@ -63,6 +63,38 @@ def test_api_security_headers_on_cookie_responses(api):
     assert r.headers["referrer-policy"] == "strict-origin-when-cross-origin"
 
 
+def test_public_cors_preflight_and_actual_headers(server):
+    with httpx.Client(base_url=server.base_url) as c:
+        # Preflight permitido en ruta pública (incluso desde otro puerto local de desarrollo)
+        r_ok = c.options("/api/bookings", headers={"origin": "http://127.0.0.1:5173"})
+        assert r_ok.status_code == 204
+        assert r_ok.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+        assert r_ok.headers["access-control-allow-credentials"] == "true"
+        assert "POST" in r_ok.headers["access-control-allow-methods"]
+        assert r_ok.headers["cache-control"] == "no-store"
+        assert r_ok.headers["x-content-type-options"] == "nosniff"
+        assert r_ok.headers["strict-transport-security"] == "max-age=31536000"
+        assert r_ok.headers["x-frame-options"] == "DENY"
+        assert r_ok.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+
+        # Preflight rechazado para origen externo no autorizado
+        r_bad = c.options("/api/bookings", headers={"origin": "https://evil.example"})
+        assert r_bad.status_code == 403
+        assert "access-control-allow-origin" not in r_bad.headers
+        assert r_bad.headers["x-content-type-options"] == "nosniff"
+
+        # Petición normal añade cabeceras CORS solo si el origen es permitido
+        r_get_ok = c.get("/api/config", headers={"origin": "http://127.0.0.1:5173"})
+        assert r_get_ok.status_code == 200
+        assert r_get_ok.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+        assert "Origin" in r_get_ok.headers.get("vary", "")
+
+        r_get_bad = c.get("/api/config", headers={"origin": "https://evil.example"})
+        assert r_get_bad.status_code == 200
+        assert "access-control-allow-origin" not in r_get_bad.headers
+
+
+
 #  availability
 
 def test_availability_happy_path(api):
@@ -136,16 +168,26 @@ def test_combo_books_as_one_slot_and_blocks_its_own_duration(api, server, free_d
     combo = config.SERVICES_BY_ID["combo-unas-cejas"]
     assert combo["duration"] == config.DURACION_COMBO_X
 
-    r = api.post("/api/bookings", json=booking_payload(free_day, "08:00", service="combo-unas-cejas"))
+    # Sin sub-servicios elegidos se rechaza con 422.
+    r_bare = api.post("/api/bookings", json=booking_payload(free_day, "08:00", service="combo-unas-cejas"))
+    assert r_bare.status_code == 422
+    assert "service_id" in r_bare.json()["fields"]
+
+    r = api.post(
+        "/api/bookings",
+        json=booking_payload(free_day, "08:00", service="combo-unas-cejas:semipermanente+diseno-cejas"),
+    )
     assert r.status_code == 201, r.text
-    assert r.json()["summary"]["service"] == "Combo Uñas + Cejas"
+    expected_first = "Combo Uñas + Cejas (Semipermanente + Diseño de cejas)"
+    assert r.json()["summary"]["service"] == expected_first
     assert "Combo Uñas + Cejas" in unquote(r.json()["whatsapp_url"])
 
     row = server.sql(
-        "SELECT service_name, duration_min, start_min, end_min, busy_until_min FROM bookings "
+        "SELECT service_id, service_name, duration_min, start_min, end_min, busy_until_min FROM bookings "
         f"WHERE date = '{free_day.isoformat()}' AND start_min = 480"
     )[0]
-    assert row["service_name"] == "Combo Uñas + Cejas"
+    assert row["service_id"] == "combo-unas-cejas:semipermanente+diseno-cejas"
+    assert row["service_name"] == expected_first
     assert row["duration_min"] == config.DURACION_COMBO_X
     assert row["end_min"] == 480 + config.DURACION_COMBO_X
     assert row["busy_until_min"] == 480 + config.DURACION_COMBO_X
@@ -155,7 +197,7 @@ def test_combo_books_as_one_slot_and_blocks_its_own_duration(api, server, free_d
     assert not any(slots[t] for t in ["08:00", "08:30", "09:00", "09:30", "10:00"])
     assert slots["10:30"]
 
-    # Y con sub-servicios elegidos guarda el ID compuesto y el nombre detallado
+    # Y con combo_selections también guarda el ID compuesto y el nombre detallado
     payload = booking_payload(free_day, "10:30", service="combo-unas-cejas", phone="300 987 6543")
     payload["combo_selections"] = {"unas": "acrilicas", "cejas": "laminado-cejas"}
     r2 = api.post("/api/bookings", json=payload)
@@ -180,7 +222,14 @@ def test_long_combo_offers_slots_until_closing_and_blocks_them(api, free_day):
     assert slots["17:30"]
     assert "18:00" not in slots
 
-    r = api.post("/api/bookings", json=booking_payload(free_day, "14:00", service="combo-triple"))
+    r = api.post(
+        "/api/bookings",
+        json=booking_payload(
+            free_day,
+            "14:00",
+            service="combo-triple:semipermanente+diseno-cejas+pelo-a-pelo",
+        ),
+    )
     assert r.status_code == 201, r.text
 
     slots = slots_of(api, free_day, service="combo-triple")
@@ -508,14 +557,21 @@ def test_unknown_routes_404(api, method, path):
 
 
 def test_static_site_and_security_headers(api):
-    r = api.get("/")
-    assert r.status_code == 200
-    assert "Reserva en tres pasos" in r.text
-    csp = r.headers.get("content-security-policy", "")
-    assert "default-src 'self'" in csp and "challenges.cloudflare.com" in csp
-    assert r.headers.get("x-frame-options") == "DENY"
-    assert r.headers.get("x-content-type-options") == "nosniff"
-    assert r.headers.get("strict-transport-security", "").startswith("max-age=")
+    for path, expected_text in (
+        ("/", "Reserva en tres pasos"),
+        ("/cuidados/", "Cómo cuidar tu mirada"),
+        ("/preguntas-frecuentes/", "Preguntas"),
+    ):
+        r = api.get(path)
+        assert r.status_code == 200
+        assert expected_text in r.text
+        csp = r.headers.get("content-security-policy", "")
+        assert "default-src 'self'" in csp and "challenges.cloudflare.com" in csp
+        assert "style-src 'self' https://fonts.googleapis.com" in csp
+        assert "<style" not in r.text.lower()
+        assert r.headers.get("x-frame-options") == "DENY"
+        assert r.headers.get("x-content-type-options") == "nosniff"
+        assert r.headers.get("strict-transport-security", "").startswith("max-age=")
 
 
 def test_static_404_page(api):
