@@ -37,6 +37,7 @@
     catHint: form.querySelector("[data-cat-swipe-hint]"),
     catWrap: form.querySelector(".service-categories-wrap"),
     services: q("[data-service-options]"),
+    comboBuilder: q("[data-combo-builder]"),
     strip: q("[data-date-strip]"),
     prev: q("[data-date-prev]"),
     next: q("[data-date-next]"),
@@ -59,6 +60,9 @@
     page: 0,
     category: null,
     serviceId: null,
+    comboSelections: {},
+    comboAutoStepTimer: null,
+    stepScrollTimer: null,
     date: null,
     time: null,
     slots: new Map(),
@@ -88,10 +92,73 @@
     if (h > 0) return `${h} h`;
     return `${m} min`;
   };
+  const formatCop = (price) => {
+    if (price === null || price === undefined) return "$ X";
+    return "$ " + String(Math.round(Number(price))).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
   const pageSize = () => (mobile.matches ? 5 : 7);
-  const service = () => state.config?.services.find((s) => s.id === state.serviceId);
+  const baseService = () => state.config?.services.find((s) => s.id === state.serviceId);
+  const isCombo = (s = baseService()) => Boolean(s?.components?.length);
+  const isServiceComplete = (s = baseService()) => {
+    if (!s) return false;
+    if (!isCombo(s)) return true;
+    return s.components.every((cat) => {
+      const subId = state.comboSelections[cat];
+      return Boolean(subId && state.config?.services.some((item) => item.id === subId && item.category === cat));
+    });
+  };
+  const service = () => {
+    const s = baseService();
+    if (!s) return null;
+    if (!isCombo(s)) return { ...s, base_id: s.id, full_name: s.name, sub_names: "", complete: true };
+
+    const chosen = [];
+    const refSubs = [];
+    for (const cat of s.components) {
+      const subId = state.comboSelections[cat];
+      const exact = subId ? state.config?.services.find((item) => item.id === subId && item.category === cat) : null;
+      if (exact) {
+        chosen.push(exact);
+        refSubs.push(exact);
+      } else {
+        const fallback = state.config?.services.find((item) => item.category === cat);
+        if (fallback) refSubs.push(fallback);
+      }
+    }
+
+    const complete = chosen.length === s.components.length;
+    const savedMin = Number(s.duration_saved_min || 0);
+    const duration = refSubs.length
+      ? Math.max(30, refSubs.reduce((acc, item) => acc + Number(item.duration || 0), 0) - savedMin)
+      : s.duration;
+    const anyNullPrice = !refSubs.length || refSubs.some((item) => item.price === null || item.price === undefined);
+    const price = anyNullPrice
+      ? null
+      : Math.max(0, refSubs.reduce((acc, item) => acc + Number(item.price), 0) - Number(s.discount_cop || 0));
+    const price_label = formatCop(price);
+    const subNames = chosen.map((item) => item.name).join(" + ");
+    const effectiveId = complete ? `${s.id}:${chosen.map((item) => item.id).join("+")}` : s.id;
+    const fullName = complete ? `${s.name} (${subNames})` : s.name;
+
+    return {
+      ...s,
+      id: effectiveId,
+      base_id: s.id,
+      full_name: fullName,
+      sub_names: subNames,
+      complete,
+      chosen,
+      duration,
+      price,
+      price_label,
+    };
+  };
   const CACHE_TTL_MS = 60000;
-  const daySlots = (iso) => state.slots.get(state.serviceId)?.days?.get(iso);
+  const daySlots = (iso) => {
+    const s = service();
+    if (!s) return undefined;
+    return (state.slots.get(s.id) || state.slots.get(s.base_id))?.days?.get(iso);
+  };
 
   function h(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
@@ -102,7 +169,7 @@
       else if (k === "hidden") { if (v) node.hidden = true; }
       else if (v !== null && v !== undefined && v !== false) node.setAttribute(k, v);
     }
-    for (const c of [].concat(children)) node.append(c);
+    for (const c of [].concat(children)) if (c !== null && c !== undefined) node.append(c);
     return node;
   }
 
@@ -123,6 +190,7 @@
         opt.hidden = opt.dataset.category !== catId;
       });
     }
+    renderComboBuilder();
   }
 
   let catScrollTicking = false;
@@ -192,6 +260,110 @@
     requestAnimationFrame(updateCategoryScrollState);
   }
 
+  function renderComboBuilder() {
+    if (!ui.comboBuilder) return;
+    const s = baseService();
+    if (!s || !isCombo(s) || state.category !== s.category) {
+      ui.comboBuilder.hidden = true;
+      ui.comboBuilder.replaceChildren();
+      return;
+    }
+
+    const totalCount = s.components.length;
+    const doneCount = s.components.filter((cat) => Boolean(state.comboSelections[cat])).length;
+    const allDone = doneCount === totalCount;
+
+    const statusPill = h("span", {
+      class: `combo-status-pill${allDone ? " is-complete" : ""}`,
+      text: allDone ? "✓ Combinación lista" : `${doneCount} de ${totalCount} elegidos`,
+    });
+
+    const head = h("div", { class: "combo-builder-head" }, [
+      h("div", { class: "combo-builder-title-wrap" }, [
+        h("span", { class: "combo-builder-eyebrow", text: "Personaliza tu combo" }),
+        h("p", { class: "combo-builder-title" }, [
+          "Elige qué servicios deseas en tu ",
+          h("strong", { text: s.name }),
+        ]),
+      ]),
+      statusPill,
+    ]);
+
+    const groups = h("div", {
+      class: "combo-groups",
+      "data-cols": String(totalCount),
+    }, s.components.map((catId, idx) => {
+      const catLabel = CATEGORY_LABEL[catId] ?? catId;
+      const catServices = state.config.services.filter((item) => item.category === catId);
+      const selectedSubId = state.comboSelections[catId] || null;
+      const icon = renderCatIcon(catId);
+      const headChildren = [];
+      if (icon) headChildren.push(icon);
+      headChildren.push(h("span", { class: "combo-group-label", text: `${idx + 1}. ${catLabel}` }));
+
+      const options = h("div", {
+        class: "combo-group-options",
+        role: "radiogroup",
+        "aria-label": `Servicio de ${catLabel}`,
+      }, catServices.map((sub) => {
+        const isSelected = selectedSubId === sub.id;
+        const metaParts = [formatDuration(sub.duration)];
+        if (sub.price !== null && sub.price !== undefined) metaParts.push(sub.price_label);
+        const chip = h("button", {
+          type: "button",
+          class: `combo-chip${isSelected ? " is-selected" : ""}`,
+          role: "radio",
+          "aria-checked": String(isSelected),
+          "data-combo-cat": catId,
+          "data-combo-sub": sub.id,
+        }, [
+          h("span", { class: "combo-chip-check", "aria-hidden": "true" }),
+          h("span", { class: "combo-chip-body" }, [
+            h("span", { class: "combo-chip-name", text: sub.name }),
+            h("span", { class: "combo-chip-meta", text: metaParts.filter(Boolean).join(" · ") }),
+          ]),
+        ]);
+        chip.addEventListener("click", () => selectComboComponent(catId, sub.id));
+        return chip;
+      }));
+
+      return h("div", { class: "combo-group", "data-combo-group": catId }, [
+        h("div", { class: "combo-group-head" }, headChildren),
+        options,
+      ]);
+    }));
+
+    const children = [head, groups];
+    if (allDone && isMobileStepper()) {
+      const contBtn = h("button", {
+        type: "button",
+        class: "btn btn-dark btn-sm combo-continue-btn",
+        text: "Continuar a fecha y hora \u2192\uFE0E",
+      });
+      contBtn.addEventListener("click", () => setStep(2, { scroll: true }));
+      children.push(contBtn);
+    }
+
+    ui.comboBuilder.replaceChildren(...children);
+    ui.comboBuilder.hidden = false;
+  }
+
+  async function selectComboComponent(catId, subId) {
+    clearTimeout(state.comboAutoStepTimer);
+    state.comboSelections[catId] = subId;
+    clearError("service_id");
+    renderComboBuilder();
+    renderSummary();
+    updateStepSummaries();
+
+    if (isMobileStepper() && isServiceComplete()) {
+      state.comboAutoStepTimer = setTimeout(() => {
+        setStep(2, { scroll: true });
+      }, 240);
+    }
+    await loadAvailability();
+  }
+
   function renderServices() {
     if (!state.category && state.config?.categories?.length) {
       state.category = state.config.categories[0].id;
@@ -223,6 +395,7 @@
         ]),
       ]);
     }));
+    renderComboBuilder();
   }
 
   function isMobileStepper() {
@@ -235,9 +408,10 @@
     if (s1) {
       if (s1.title) s1.title.textContent = s ? s.name : "—";
       if (s1.meta) {
+        const sub = s?.sub_names || "";
         const dur = formatDuration(s?.duration);
         const pr = s?.price_label || "";
-        s1.meta.textContent = [dur, pr].filter(Boolean).join(" · ") || "Servicio en estudio";
+        s1.meta.textContent = [sub, dur, pr].filter(Boolean).join(" · ") || "Servicio en estudio";
       }
     }
 
@@ -266,7 +440,7 @@
         if (collapsed) collapsed.hidden = true;
         if (pending) pending.hidden = true;
       } else if (num < state.activeStep) {
-        const hasData = (num === 1 && Boolean(state.serviceId)) ||
+        const hasData = (num === 1 && isServiceComplete()) ||
                         (num === 2 && Boolean(state.date && state.time));
         if (hasData) {
           el.classList.add("is-completed");
@@ -294,17 +468,19 @@
   }
 
   function setStep(stepNum, { scroll = false } = {}) {
+    clearTimeout(state.stepScrollTimer);
     state.activeStep = stepNum;
     if (stepNum >= 2) ensureTurnstile();
     applyStepClasses();
     if (scroll && isMobileStepper()) {
       const target = ui.steps.find((s) => s.num === stepNum)?.el;
       if (target) {
-        setTimeout(() => {
+        if (stepNum === 3 && !target.contains(document.activeElement) && !form.elements.name?.value) {
+          form.elements.name?.focus({ preventScroll: true });
+        }
+        state.stepScrollTimer = setTimeout(() => {
+          if (stepNum === 3 && form.elements.name?.value) return;
           target.scrollIntoView({ behavior: "smooth", block: "start" });
-          if (stepNum === 3) {
-            form.elements.name?.focus({ preventScroll: true });
-          }
         }, 60);
       }
     }
@@ -321,11 +497,17 @@
         showError("service_id", "Elige un servicio para continuar.");
         return;
       }
+      if (!isServiceComplete()) {
+        clearError("service_id");
+        showError("service_id", "Elige los servicios que deseas incluir en tu combo.");
+        ui.comboBuilder?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
       setStep(2, { scroll: true });
     } else if (stepNum === 3) {
-      if (!state.serviceId) {
+      if (!state.serviceId || !isServiceComplete()) {
         clearError("service_id");
-        showError("service_id", "Elige un servicio para continuar.");
+        showError("service_id", !state.serviceId ? "Elige un servicio para continuar." : "Elige los servicios que deseas incluir en tu combo.");
         editStep(1);
         return;
       }
@@ -341,9 +523,10 @@
 
   async function selectService(id, { scroll = false } = {}) {
     ensureTurnstile();
+    clearTimeout(state.comboAutoStepTimer);
     const prevService = state.serviceId;
     state.serviceId = id;
-    const s = state.config?.services.find((x) => x.id === id);
+    const s = baseService();
     if (s && s.category !== state.category) {
       setCategory(s.category);
     }
@@ -355,8 +538,19 @@
       state.time = null;
     }
 
+    renderComboBuilder();
     renderSummary();
-    if (isMobileStepper()) {
+
+    if (isCombo(s)) {
+      updateStepSummaries();
+      if (scroll) {
+        document.getElementById("agendar")?.scrollIntoView({ behavior: "smooth" });
+      } else if (isMobileStepper() && ui.comboBuilder && !ui.comboBuilder.hidden) {
+        setTimeout(() => {
+          ui.comboBuilder.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 60);
+      }
+    } else if (isMobileStepper()) {
       setStep(2, { scroll: true });
     } else {
       updateStepSummaries();
@@ -366,7 +560,8 @@
   }
 
   async function loadAvailability({ force = false } = {}) {
-    const id = state.serviceId;
+    const s = service();
+    const id = s?.id;
     if (!id) return;
     const cached = state.slots.get(id);
     if (!force && cached && (Date.now() - cached.time < CACHE_TTL_MS)) {
@@ -389,7 +584,7 @@
       return;
     }
     state.loading = false;
-    if (state.serviceId === id) afterAvailability();
+    if (service()?.id === id) afterAvailability();
   }
 
   function afterAvailability() {
@@ -486,8 +681,30 @@
 
   function renderSummary() {
     const s = service();
-    const set = (key, value) => { form.querySelector(`[data-sum="${key}"]`).textContent = value || "—"; };
+    const set = (key, value) => {
+      const node = form.querySelector(`[data-sum="${key}"]`);
+      if (node) node.textContent = value || "—";
+    };
     set("service", s?.name);
+    const detailNode = form.querySelector('[data-sum="service-detail"]');
+    if (detailNode) {
+      if (s && isCombo(s)) {
+        const missingCats = s.components
+          .filter((cat) => !state.comboSelections[cat])
+          .map((cat) => CATEGORY_LABEL[cat] ?? cat);
+        if (s.sub_names && !missingCats.length) {
+          detailNode.textContent = s.sub_names;
+        } else if (s.sub_names && missingCats.length) {
+          detailNode.textContent = `${s.sub_names} · Falta ${missingCats.join(" y ")}`;
+        } else {
+          detailNode.textContent = `Elige: ${missingCats.join(" + ")}`;
+        }
+        detailNode.hidden = false;
+      } else {
+        detailNode.textContent = "";
+        detailNode.hidden = true;
+      }
+    }
     set("date", state.date && formatDateLong(state.date));
     set("time", state.time && formatTime(state.time));
     set("price", s?.price_label);
@@ -518,7 +735,12 @@
           language: "es",
           theme: "light",
           appearance: "interaction-only",
-          callback: (token) => { state.tsToken = token; ui.notice.hidden = true; },
+          callback: (token) => {
+            clearTimeout(state.tsTimer);
+            state.tsStatus = TS.READY;
+            state.tsToken = token;
+            ui.notice.hidden = true;
+          },
           "expired-callback": () => {
             // El widget sigue vivo: solo hay que volver a tocarlo.
             state.tsToken = null;
@@ -558,6 +780,8 @@
   }
 
   function nudgeWidget() {
+    const inp = ui.turnstile?.querySelector('[name="cf-turnstile-response"]');
+    if (inp) inp.value = "";
     if (state.tsId === null || typeof window.turnstile?.reset !== "function") return;
     try { window.turnstile.reset(state.tsId); } catch (err) { console.warn(err); }
   }
@@ -613,7 +837,11 @@
 
   function clientValidate() {
     const errors = {};
-    if (!state.serviceId) errors.service_id = "Elige un servicio.";
+    if (!state.serviceId) {
+      errors.service_id = "Elige un servicio.";
+    } else if (!isServiceComplete()) {
+      errors.service_id = "Elige los servicios que deseas incluir en tu combo.";
+    }
     if (!state.date || !state.time) errors.time = "Elige una fecha y una hora.";
     const text = (name) => form.elements[name].value.trim();
     if (text("name").length < 2) errors.name = "Escribe tu nombre.";
@@ -629,6 +857,10 @@
     }
     if (state.tsStatus === TS.OFF) return { blocked: true, text: TS_MSG.noKey };
     if (state.tsStatus === TS.LOADING) return { blocked: true, text: TS_MSG.loading };
+    if (!state.tsToken) {
+      const domToken = ui.turnstile?.querySelector('[name="cf-turnstile-response"]')?.value;
+      if (domToken) state.tsToken = domToken;
+    }
     if (state.tsToken) return { blocked: false };
     if (state.tsStatus === TS.READY) return { blocked: true, text: TS_MSG.needToken, nudge: true };
     return { blocked: true, text: TS_MSG.broken, retry: state.tsRetries < TS_MAX_RETRIES };
@@ -637,6 +869,7 @@
   async function onSubmit(event) {
     event.preventDefault();
     if (state.submitting) return;
+    clearTimeout(state.stepScrollTimer);
     ["service_id", "time", "name", "phone"].forEach(clearError);
     setMessage("");
 
@@ -668,8 +901,9 @@
 
     state.submitting = true;
     ui.submit.disabled = true;
+    const s = service();
     const payload = {
-      service_id: state.serviceId,
+      service_id: s ? s.id : state.serviceId,
       date: state.date,
       time: state.time,
       name: form.elements.name.value,
@@ -678,7 +912,11 @@
       turnstile_token: state.tsToken,
       form_token: state.formToken,
     };
+    if (isCombo(s)) {
+      payload.combo_selections = state.comboSelections;
+    }
 
+    let booked = false;
     try {
       const res = await fetch("/api/bookings", {
         method: "POST",
@@ -686,7 +924,10 @@
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.status === 201) return showSuccess(data);
+      if (res.status === 201) {
+        booked = true;
+        return showSuccess(data);
+      }
       if (res.status === 422 && data.fields) Object.entries(data.fields).forEach(([f, m]) => showError(f, m));
       if (res.status === 409) {
         state.time = null;
@@ -700,7 +941,9 @@
       state.submitting = false;
       ui.submit.disabled = false;
       state.tsToken = null;
-      if (state.tsStatus === TS.READY) nudgeWidget();
+      const inp = ui.turnstile?.querySelector('[name="cf-turnstile-response"]');
+      if (inp) inp.value = "";
+      if (!booked && state.tsStatus === TS.READY) nudgeWidget();
     }
   }
 
@@ -710,7 +953,7 @@
     const s = service();
     const val = (name) => form.elements[name]?.value.trim();
     const lines = ["Hola Angélica ✨ Quiero agendar una cita:", ""];
-    if (s) lines.push(`• Servicio: ${s.name}`);
+    if (s) lines.push(`• Servicio: ${s.full_name || s.name}`);
     if (state.date) lines.push(`• Fecha: ${formatDateLong(state.date)}`);
     if (state.time) lines.push(`• Hora: ${formatTime(state.time)}`);
     if (val("name")) lines.push(`• Nombre: ${val("name")}`);
@@ -725,7 +968,7 @@
     form.querySelector("[data-success-link]").href = data.whatsapp_url;
 
     const s = service();
-    const sName = data.summary?.service || s?.name || "Servicio en estudio";
+    const sName = data.summary?.service || s?.full_name || s?.name || "Servicio en estudio";
     const dText = data.summary?.date && data.summary?.time
       ? `${data.summary.date} · ${data.summary.time}`
       : (state.date && state.time ? `${formatDateLong(state.date)} · ${formatTime(state.time)}` : "");
@@ -776,23 +1019,31 @@
     ui.summary.hidden = true;
     ui.success.hidden = false;
     ui.success.focus();
+    if (s) state.slots.delete(s.id);
     state.slots.delete(state.serviceId);
     document.getElementById("agendar")?.scrollIntoView({ behavior: "smooth" });
   }
 
   function resetForNewBooking() {
+    clearTimeout(state.comboAutoStepTimer);
     form.classList.remove("is-booked");
     ["name", "phone", "notes"].forEach((n) => { form.elements[n].value = ""; });
     state.serviceId = null;
+    state.comboSelections = {};
+    ui.services?.querySelectorAll('input[name="service_id"]').forEach((r) => { r.checked = false; });
     state.date = null;
     state.time = null;
+    state.page = 0;
     state.formToken = newFormToken();
     const locBox = form.querySelector("[data-success-location]");
     if (locBox) locBox.hidden = true;
     ui.success.hidden = true;
     ui.summary.hidden = false;
+    if (!state.tsToken && state.tsStatus === TS.READY) nudgeWidget();
+    renderComboBuilder();
+    renderDates();
+    renderTimes();
     renderSummary();
-    loadAvailability();
     setStep(1, { scroll: true });
     document.getElementById("agendar").scrollIntoView({ behavior: "smooth" });
   }

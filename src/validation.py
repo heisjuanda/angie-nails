@@ -38,9 +38,16 @@ def validate_booking(data: dict) -> dict:
     errors: dict[str, str] = {}
     out: dict = {}
 
-    service = config.SERVICES_BY_ID.get(str(data.get("service_id", "")))
+    raw_service_id = str(data.get("service_id", ""))
+    combo_selections = data.get("combo_selections")
+    service = config.resolve_service(raw_service_id, combo_selections)
     if not service:
-        errors["service_id"] = "Elige un servicio."
+        base_id = raw_service_id.strip().partition(":")[0]
+        base = config.SERVICES_BY_ID.get(base_id)
+        if base and base.get("components"):
+            errors["service_id"] = "Elige los servicios que deseas incluir en tu combo."
+        else:
+            errors["service_id"] = "Elige un servicio."
     out["service"] = service
 
     try:

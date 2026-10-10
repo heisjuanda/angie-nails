@@ -192,6 +192,8 @@ async def update_booking(env, request, code: str):
         row = await db.get_booking(env.DB, code)
 
     if new_status is not None:
+        if new_status == "confirmed" and admin_logic.is_past_booking(row):
+            return error(422, "No se puede confirmar una cita cuyo horario ya pasó.")
         if not await db.set_booking_status(env.DB, code, row["status"], new_status):
             if new_status == "confirmed":
                 return error(409, "No se puede confirmar: ese horario ya lo ocupa otra cita.")

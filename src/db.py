@@ -11,7 +11,7 @@ def _active(alias: str = "") -> str:
     return (
         f"({p}status = 'confirmed' OR ({p}status = 'pending' AND ("
         f"{p}created_at > datetime('now', '-{int(config.PENDING_TTL_HOURS)} hours')"
-        f" OR {inicio} > datetime('now', '-5 hours'))))"
+        f" AND {inicio} > datetime('now', '-5 hours'))))"
     )
 
 

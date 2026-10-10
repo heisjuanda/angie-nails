@@ -251,28 +251,68 @@ def test_slot_taken_meanwhile_shows_message_and_refreshes(desktop, server, free_
     assert [e.split()[0] for e in desktop.http_errors] == ["409"]
 
 
-def test_combo_books_end_to_end_without_frontend_changes(desktop, server, free_day):
+def test_combo_books_end_to_end_without_frontend_changes(desktop, mobile, server, free_day):
     page = desktop.page
     page.goto("/", wait_until="load")
 
     card = page.locator(".service-card", has_text="Combos")
     card.wait_for()
     assert card.locator(".service-list li").count() == len(config.BUNDLES)
+    assert card.locator(".service-card-sub").is_visible()
     # Los combos se ofrecen primero: es lo que más se vende.
     assert "Combos" in page.locator(".service-card").first.text_content()
 
-    pick(page, free_day, "08:00", "Combo Uñas + Cejas")
-    fill_customer(page)
+    # En desktop: elegir Combo Uñas + Cejas abre el armador inline
+    page.locator("#agendar").scroll_into_view_if_needed()
+    page.locator("label.service-option", has_text="Combo Uñas + Cejas").click()
+    builder = page.locator("[data-combo-builder]")
+    builder.wait_for(state="visible")
+    assert "0 de 2 elegidos" in builder.text_content()
+
+    builder.locator(".combo-chip[data-combo-sub='acrilicas']").click()
+    assert "1 de 2 elegidos" in builder.text_content()
+    builder.locator(".combo-chip[data-combo-sub='laminado-cejas']").click()
+    assert "Combinación lista" in builder.text_content()
     assert page.text_content("[data-sum=service]") == "Combo Uñas + Cejas"
+    assert page.text_content("[data-sum=service-detail]") == "Uñas acrílicas + Laminado de cejas"
+
+    label = messages.format_date_es(free_day)
+    for _ in range(6):
+        btn = page.locator(f".date-btn[aria-label^='{label}']")
+        if btn.count():
+            btn.click()
+            break
+        page.click("[data-date-next]")
+    page.locator(f".time-btn[aria-label='{messages.format_time_es('08:00')}']").click()
+    fill_customer(page)
 
     wait_turnstile(page)
     page.click("[data-submit]")
     page.wait_for_selector("[data-success]:not([hidden])")
 
     code = page.text_content("[data-success-code]")
-    row = server.sql(f"SELECT service_name, duration_min FROM bookings WHERE code = '{code}'")[0]
-    assert row == {"service_name": "Combo Uñas + Cejas", "duration_min": config.DURACION_COMBO_X}
+    row = server.sql(f"SELECT service_id, service_name, duration_min FROM bookings WHERE code = '{code}'")[0]
+    assert row == {
+        "service_id": "combo-unas-cejas:acrilicas+laminado-cejas",
+        "service_name": "Combo Uñas + Cejas (Uñas acrílicas + Laminado de cejas)",
+        "duration_min": config.DURACION_COMBO_X,
+    }
     assert desktop.errors == [] and desktop.http_errors == []
+
+    # En mobile (<=1000px): el Paso 1 se mantiene abierto hasta completar los sub-servicios del combo
+    mp = mobile.page
+    open_booking(mp)
+    mp.locator("label.service-option", has_text="Combo Uñas + Pestañas").click()
+    mp.locator("[data-combo-builder]").wait_for(state="visible")
+    assert mp.locator("[data-step='1'].is-active").count() == 1
+    mp.locator(".combo-chip[data-combo-sub='semipermanente']").click()
+    assert mp.locator("[data-step='1'].is-active").count() == 1
+    mp.locator(".combo-chip[data-combo-sub='lifting']").click()
+    mp.wait_for_selector("[data-step='2'].is-active")
+    assert mp.locator("[data-step='1'].is-completed").count() == 1
+    assert "Semipermanente + Lifting de pestañas" in mp.text_content("[data-step-meta='1']")
+    assert mp.evaluate("document.documentElement.scrollWidth") <= 390
+    assert mobile.errors == [] and mobile.http_errors == []
 
 
 def test_book_category_button_preselects_service(desktop):

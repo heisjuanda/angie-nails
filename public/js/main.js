@@ -101,16 +101,27 @@ async function initServices() {
   grid.replaceChildren(...config.categories.map((cat, i) => {
     const items = config.services.filter((s) => s.category === cat.id);
     const button = el("a", { class: "btn btn-outline btn-block", href: "#agendar", "data-book-category": cat.id, text: `Agendar ${cat.name}` });
-    return el("article", { class: "service-card" }, [
+    const cardChildren = [
       el("header", { class: "service-card-head" }, [
         el("h3", { class: "service-card-title", text: cat.name }),
         el("span", { class: "service-card-num", text: String(i + 1).padStart(2, "0") }),
       ]),
+    ];
+    if (cat.id === "combos") {
+      cardChildren.push(
+        el("p", {
+          class: "service-card-sub",
+          text: "Elige qué servicio de uñas, cejas o pestañas incluir en tu combinación al agendar.",
+        })
+      );
+    }
+    cardChildren.push(
       el("ul", { class: "service-list" }, items.map((s) =>
         el("li", {}, [el("span", { text: s.name }), el("span", { text: s.price_label })])
       )),
       button,
-    ]);
+    );
+    return el("article", { class: "service-card" }, cardChildren);
   }));
 
   // WhatsApp del pie de página

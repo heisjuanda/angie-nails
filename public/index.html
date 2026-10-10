@@ -531,6 +531,7 @@
                 <div class="service-options" data-service-options>
                   <p class="muted">Cargando servicios…</p>
                 </div>
+                <div class="combo-builder" data-combo-builder hidden></div>
                 <p class="field-error" data-error="service_id" hidden></p>
               </div>
             </div>
@@ -630,7 +631,10 @@
               <dl class="summary-list">
                 <div>
                   <dt>Servicio</dt>
-                  <dd data-sum="service">—</dd>
+                  <dd>
+                    <span data-sum="service">—</span>
+                    <span class="summary-subtext" data-sum="service-detail" hidden></span>
+                  </dd>
                 </div>
                 <div>
                   <dt>Fecha</dt>

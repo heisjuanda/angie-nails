@@ -101,6 +101,7 @@
   function showApp() {
     $("[data-view=login]").hidden = true;
     $("[data-view=app]").hidden = false;
+    requestAnimationFrame(updateStatusScrollState);
     loadAgenda();
     loadBlocks();
     clearInterval(state.refreshTimer);
@@ -211,26 +212,61 @@
     ));
   }
 
+  const EDIT_ICON_SVG = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><path d="M15 5l4 4"/></svg>';
+  const WA_ICON_SVG = '<svg class="icon icon-wa" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><path d="M9.6 8.8c.2-.4.4-.5.7-.5h.5c.2 0 .4.1.5.4l.7 1.6c.1.2.1.4 0 .6l-.5.6c-.1.2-.2.3 0 .6.3.5.7 1 1.3 1.4.6.4 1 .6 1.3.7.2.1.4 0 .5-.1l.6-.7c.2-.2.4-.2.6-.1l1.5.7c.3.1.4.3.4.5 0 .4-.2 1-.7 1.4-.5.4-1.1.5-1.8.3-1.4-.4-2.8-1.2-3.9-2.3-1.1-1.1-1.9-2.5-2.3-3.9-.2-.7-.1-1.3.3-1.8.1-.2.2-.3.3-.4z"/></svg>';
+
+  function svgNode(raw) {
+    const t = document.createElement("template");
+    t.innerHTML = raw;
+    return t.content.firstElementChild;
+  }
+
   function bookingCard(b) {
     const status = b.expired ? "expired" : b.status;
     const badge = h("span", { class: `badge badge-${b.status}`, text: b.status_label });
-    const actions = (b.expired ? [] : ACTIONS[b.status] || []).map(([to, label, cls]) => {
+    const decisions = (b.expired ? [] : ACTIONS[b.status] || []).map(([to, label, cls]) => {
       const btn = h("button", { type: "button", class: `btn ${cls}`, "data-action": to, text: label });
       btn.addEventListener("click", () => onAction(b, to, btn, label));
       return btn;
     });
     if (b.expired) {
-      // Una pendiente vencida aún se puede confirmar si el horario sigue libre.
-      const btn = h("button", { type: "button", class: "btn btn-outline", "data-action": "confirmed", text: "Confirmar" });
-      btn.addEventListener("click", () => onAction(b, "confirmed", btn, "Confirmar"));
-      actions.push(btn);
+      // Una pendiente vencida por plazo aún se puede confirmar si el horario sigue en el futuro y libre.
+      const now = new Date();
+      const todayIso = iso(now);
+      const isFuture = b.date > todayIso || (b.date === todayIso && toMin(b.start) > now.getHours() * 60 + now.getMinutes());
+      if (isFuture) {
+        const btn = h("button", { type: "button", class: "btn btn-outline", "data-action": "confirmed", text: "Confirmar" });
+        btn.addEventListener("click", () => onAction(b, "confirmed", btn, "Confirmar"));
+        decisions.push(btn);
+      }
     }
+
+    const tools = [];
     if (!b.expired && (b.status === "pending" || b.status === "confirmed")) {
-      const edit = h("button", { type: "button", class: "btn btn-outline", "data-action": "edit", text: "Editar" });
+      const edit = h("button", {
+        type: "button",
+        class: "booking-icon-btn",
+        "data-action": "edit",
+        "aria-label": "Editar cita",
+        title: "Editar cita",
+      }, [svgNode(EDIT_ICON_SVG)]);
       edit.addEventListener("click", () => openEdit(b));
-      actions.unshift(edit);
+      tools.push(edit);
     }
-    actions.push(h("a", { class: "btn btn-outline", href: b.whatsapp_url, target: "_blank", rel: "noopener", text: "WhatsApp" }));
+    tools.push(h("a", {
+      class: "booking-icon-btn booking-icon-wa",
+      href: b.whatsapp_url,
+      target: "_blank",
+      rel: "noopener",
+      "aria-label": "Escribir por WhatsApp",
+      title: "Escribir por WhatsApp",
+    }, [svgNode(WA_ICON_SVG)]));
+
+    const actionGroups = [];
+    if (decisions.length) {
+      actionGroups.push(h("div", { class: "booking-decisions" }, decisions));
+    }
+    actionGroups.push(h("div", { class: "booking-tools" }, tools));
 
     return h("article", { class: `booking-card is-${status}`, "data-code": b.code }, [
       h("div", { class: "booking-time" }, [b.start_label, h("small", { text: `hasta ${b.end}` })]),
@@ -246,7 +282,7 @@
         b.notes ? h("p", { class: "booking-notes", text: `“${b.notes}”` }) : null,
         h("p", { class: "booking-code", text: `${b.code} · ${b.price_label}` }),
       ]),
-      h("div", { class: "booking-actions" }, actions),
+      h("div", { class: "booking-actions" }, actionGroups),
     ]);
   }
 
@@ -319,17 +355,72 @@
     timeSelect.value = targetValue;
   }
 
+  const CAT_LABEL = { unas: "Uñas", cejas: "Cejas", pestanas: "Pestañas" };
+
+  function renderEditComboFields(baseServiceId) {
+    const wrap = $("[data-edit-combo-fields]");
+    if (!wrap) return;
+    const s = state.services.find((item) => item.id === baseServiceId);
+    if (!s || !s.components?.length) {
+      wrap.hidden = true;
+      wrap.replaceChildren();
+      return;
+    }
+
+    if (!state.editComboSelections) state.editComboSelections = {};
+    const grid = h("div", { class: "edit-combo-grid" }, s.components.map((cat) => {
+      const catServices = state.services.filter((item) => item.category === cat);
+      if (!state.editComboSelections[cat] || !catServices.some((item) => item.id === state.editComboSelections[cat])) {
+        state.editComboSelections[cat] = catServices[0]?.id || "";
+      }
+      const sel = h("select", {
+        name: `combo_${cat}`,
+        "data-edit-combo-cat": cat,
+      }, catServices.map((item) => {
+        const label = item.price !== null && item.price !== undefined
+          ? `${item.name} · ${item.price_label}`
+          : item.name;
+        return h("option", { value: item.id, text: label });
+      }));
+      sel.value = state.editComboSelections[cat];
+      sel.addEventListener("change", () => {
+        state.editComboSelections[cat] = sel.value;
+      });
+      return h("label", { class: "field" }, [
+        h("span", { class: "field-label", text: CAT_LABEL[cat] || cat }),
+        sel,
+      ]);
+    }));
+    wrap.replaceChildren(
+      h("span", { class: "edit-combo-title", text: "Sub-servicios incluidos" }),
+      grid
+    );
+    wrap.hidden = false;
+  }
+
   async function openEdit(b) {
     if (!state.configLoaded) await loadSiteConfig();
     state.editing = b.code;
     state.editingBooking = b;
+    state.editComboSelections = {};
     const form = $("[data-edit-form]");
     $("[data-edit-customer]").textContent = `${b.customer_name} · ${phoneLabel(b.phone)}`;
     $("[data-edit-when]").textContent = `${b.date_label} · ${b.start_label}`;
+
+    const [baseServiceId, subPart] = String(b.service_id || "").split(":");
+    const initialSubs = subPart ? subPart.split("+") : [];
+    const baseSpec = state.services.find((item) => item.id === baseServiceId);
+    if (baseSpec?.components?.length && initialSubs.length === baseSpec.components.length) {
+      baseSpec.components.forEach((cat, idx) => {
+        state.editComboSelections[cat] = initialSubs[idx];
+      });
+    }
+
     const service = form.elements.service_id;
     service.replaceChildren(...state.services.map((s) =>
       h("option", { value: s.id, text: `${s.name} · ${s.price_label}` })));
-    service.value = b.service_id;
+    service.value = baseServiceId;
+    renderEditComboFields(baseServiceId);
 
     const todayIso = iso(new Date());
     const dateInput = form.elements.date;
@@ -347,7 +438,7 @@
     const form = e.currentTarget;
     const dateVal = form.elements.date.value;
     const timeVal = form.elements.time.value;
-    const serviceVal = form.elements.service_id.value;
+    const baseServiceVal = form.elements.service_id.value;
 
     if (!dateVal) {
       setEditMessage("Elige una fecha válida.");
@@ -358,16 +449,29 @@
       return;
     }
 
+    const s = state.services.find((item) => item.id === baseServiceVal);
+    let serviceVal = baseServiceVal;
+    const body = {
+      date: dateVal,
+      time: timeVal,
+      service_id: serviceVal,
+    };
+    if (s?.components?.length) {
+      const selections = {};
+      for (const cat of s.components) {
+        const subSelect = form.querySelector(`[data-edit-combo-cat="${cat}"]`);
+        selections[cat] = subSelect ? subSelect.value : state.editComboSelections?.[cat];
+      }
+      body.service_id = `${baseServiceVal}:${s.components.map((cat) => selections[cat]).join("+")}`;
+      body.combo_selections = selections;
+    }
+
     const submit = form.querySelector("button[type=submit]");
     submit.disabled = true;
     try {
       await api(`/bookings/${encodeURIComponent(state.editing)}`, {
         method: "PATCH",
-        body: {
-          date: dateVal,
-          time: timeVal,
-          service_id: serviceVal,
-        },
+        body,
       });
       closeEdit();
       toast("Cita actualizada.");
@@ -449,6 +553,34 @@
   }
 
   /*  init */
+  let statusScrollTicking = false;
+  function updateStatusScrollState() {
+    if (statusScrollTicking) return;
+    statusScrollTicking = true;
+    requestAnimationFrame(() => {
+      statusScrollTicking = false;
+      const scroller = $("[data-status-filters]");
+      if (!scroller) return;
+      const { scrollLeft, scrollWidth, clientWidth } = scroller;
+      if (clientWidth <= 0) return;
+      const maxScroll = Math.round(scrollWidth - clientWidth);
+      const hasOverflow = maxScroll > 12;
+      const canScrollRight = hasOverflow && Math.round(scrollLeft) < maxScroll - 12;
+      const canScrollLeft = hasOverflow && Math.round(scrollLeft) > 12;
+
+      const wrap = $("[data-status-wrap]") || scroller.closest(".toolbar-chips-wrap");
+      if (wrap) {
+        wrap.classList.toggle("can-scroll-right", canScrollRight);
+        wrap.classList.toggle("can-scroll-left", canScrollLeft);
+      }
+      const hint = $("[data-status-swipe-hint]");
+      if (hint) {
+        hint.hidden = !canScrollRight;
+        hint.classList.toggle("is-visible", canScrollRight);
+      }
+    });
+  }
+
   function initTabs() {
     $$("[data-tab]").forEach((tab) => tab.addEventListener("click", () => {
       $$("[data-tab]").forEach((t) => {
@@ -457,12 +589,28 @@
         t.setAttribute("aria-selected", String(active));
       });
       $$("[data-panel]").forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab; });
+      if (tab.dataset.tab === "agenda") {
+        requestAnimationFrame(updateStatusScrollState);
+      }
     }));
   }
 
   async function init() {
     initTabs();
     loadSiteConfig();
+
+    const statusScroller = $("[data-status-filters]");
+    if (statusScroller) {
+      statusScroller.addEventListener("scroll", updateStatusScrollState, { passive: true });
+      window.addEventListener("resize", updateStatusScrollState, { passive: true });
+    }
+    const statusHint = $("[data-status-swipe-hint]");
+    if (statusHint && statusScroller) {
+      statusHint.style.cursor = "pointer";
+      statusHint.addEventListener("click", () => {
+        statusScroller.scrollBy({ left: 160, behavior: "smooth" });
+      });
+    }
 
     $("[data-login-form]").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -512,9 +660,14 @@
       state.status = chip.dataset.status;
       state.page = 1;
       $$("[data-status-filters] [data-status]").forEach((c) => {
-        c.classList.toggle("is-active", c === chip);
-        c.setAttribute("aria-pressed", String(c === chip));
+        const active = c === chip;
+        c.classList.toggle("is-active", active);
+        c.setAttribute("aria-pressed", String(active));
+        if (active) {
+          c.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+        }
       });
+      requestAnimationFrame(updateStatusScrollState);
       loadAgenda();
     }));
     $("[data-refresh]").addEventListener("click", () => loadAgenda());
@@ -532,7 +685,16 @@
     syncTimeFields();
 
     $("[data-edit-cancel]").addEventListener("click", closeEdit);
+    const editCloseBtn = $("[data-edit-close]");
+    if (editCloseBtn) editCloseBtn.addEventListener("click", closeEdit);
+    $("[data-edit-modal]").addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) closeEdit();
+    });
     $("[data-edit-form]").addEventListener("submit", onEditSubmit);
+    const editServiceSelect = $("[data-edit-form] select[name=service_id]");
+    editServiceSelect.addEventListener("change", () => {
+      renderEditComboFields(editServiceSelect.value);
+    });
     const editDateInput = $("[data-edit-form] input[name=date]");
     const onEditDateChange = () => {
       const b = state.editingBooking;

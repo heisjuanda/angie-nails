@@ -225,6 +225,7 @@ def test_parse_edit_rejects_date_without_service():
     ({"time": "11:00"}, True),
     ({"service_id": "volumen"}, True),
     ({"date": "2026-10-15"}, True),
+    ({"combo_selections": {"unas": "manicure", "cejas": "henna"}}, True),
     ({"status": "confirmed"}, False),
     ({}, False),
     ({"status": "confirmed", "time": "11:00"}, True),
@@ -232,3 +233,75 @@ def test_parse_edit_rejects_date_without_service():
 ])
 def test_has_edit_fields(data, ok):
     assert al.has_edit_fields(data) is ok
+
+
+def test_parse_edit_combo_with_subservices():
+    edit = al.parse_booking_edit(
+        {"service_id": "combo-unas-pestanas:semipermanente+lifting"},
+        ROW,
+    )
+    assert edit["service_id"] == "combo-unas-pestanas:semipermanente+lifting"
+    assert edit["service_name"] == "Combo Uñas + Pestañas (Semipermanente + Lifting de pestañas)"
+    assert edit["category"] == "combos"
+    assert edit["start_min"] == 540
+    assert edit["end_min"] == 540 + edit["duration_min"]
+
+
+def test_parse_edit_combo_via_combo_selections_only():
+    combo_row = {
+        **ROW,
+        "service_id": "combo-unas-cejas:semipermanente+diseno-cejas",
+        "service_name": "Combo Uñas + Cejas (Semipermanente + Diseño de cejas)",
+        "category": "combos",
+    }
+    edit = al.parse_booking_edit(
+        {"combo_selections": {"unas": "acrilicas", "cejas": "henna"}},
+        combo_row,
+    )
+    assert edit["service_id"] == "combo-unas-cejas:acrilicas+henna"
+    assert edit["service_name"] == "Combo Uñas + Cejas (Uñas acrílicas + Henna)"
+
+
+def test_is_past_booking():
+    now = datetime(2026, 10, 10, 11, 0, tzinfo=config.TZ)
+    assert al.is_past_booking({**ROW, "date": "2026-10-09", "start_min": 900}, now=now) is True
+    assert al.is_past_booking({**ROW, "date": "2026-10-10", "start_min": 600}, now=now) is True   # 10:00 <= 11:00
+    assert al.is_past_booking({**ROW, "date": "2026-10-10", "start_min": 660}, now=now) is True   # 11:00 <= 11:00
+    assert al.is_past_booking({**ROW, "date": "2026-10-10", "start_min": 690}, now=now) is False  # 11:30 > 11:00
+    assert al.is_past_booking({**ROW, "date": "2026-10-11", "start_min": 480}, now=now) is False
+
+
+def test_db_active_sql_logic_in_sqlite():
+    import sqlite3
+    import db
+
+    assert config.PENDING_TTL_HOURS == 24
+    con = sqlite3.connect(":memory:")
+    con.execute("CREATE TABLE bookings (code TEXT, status TEXT, created_at TEXT, date TEXT, start_min INTEGER)")
+    # Insertar escenarios relativos al reloj actual de SQLite:
+    # 1. Cita futura creada hace 2 horas (< 24h) -> ACTIVA (1)
+    # 2. Cita futura creada hace 13 horas (< 24h) -> ACTIVA (1)
+    # 3. Cita futura creada hace 25 horas (> 24h) -> VENCIDA (0)
+    # 4. Cita pasada (ayer) creada hace 1 hora (< 24h) -> VENCIDA (0)
+    # 5. Cita de hoy cuya hora ya pasó hace 1 hora, creada hace 2 horas (< 24h) -> VENCIDA (0)
+    # 6. Cita confirmada en el pasado y creada hace 50 horas -> ACTIVA (1)
+    con.executescript(f"""
+        INSERT INTO bookings VALUES
+          ('FUTURA_2H',  'pending',   datetime('now', '-2 hours'),  date('now', '-5 hours', '+3 days'), 600),
+          ('FUTURA_13H', 'pending',   datetime('now', '-13 hours'), date('now', '-5 hours', '+3 days'), 600),
+          ('FUTURA_25H', 'pending',   datetime('now', '-25 hours'), date('now', '-5 hours', '+3 days'), 600),
+          ('AYER_1H',    'pending',   datetime('now', '-1 hours'),  date('now', '-5 hours', '-1 days'), 600),
+          ('HOY_PASADA', 'pending',   datetime('now', '-2 hours'),  date('now', '-5 hours'),            0),
+          ('CONFIRMADA', 'confirmed', datetime('now', '-50 hours'), date('now', '-5 hours', '-1 days'), 600);
+    """)
+    rows = dict(con.execute(f"SELECT code, {db._active()} FROM bookings").fetchall())
+    assert rows == {
+        "FUTURA_2H": 1,
+        "FUTURA_13H": 1,
+        "FUTURA_25H": 0,
+        "AYER_1H": 0,
+        "HOY_PASADA": 0,
+        "CONFIRMADA": 1,
+    }
+
+

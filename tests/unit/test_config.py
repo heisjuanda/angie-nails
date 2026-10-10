@@ -71,3 +71,64 @@ def test_studio_location_config():
     assert "Todos los Santos" in config.ESTUDIO_REFERENCIA
     assert config.ESTUDIO_MAPS_URL.startswith("https://maps.google.com")
     assert config.ESTUDIO_WAZE_URL.startswith("https://waze.com")
+
+
+def test_only_bundles_have_components_and_savings_fields():
+    assert len(config.BUNDLES) == 4
+    for b in config.BUNDLES:
+        assert isinstance(b.get("components"), list) and len(b["components"]) in (2, 3)
+        assert "discount_cop" in b
+        assert "duration_saved_min" in b
+    for s in config.SERVICES:
+        assert "components" not in s
+        assert "discount_cop" not in s
+        assert "duration_saved_min" not in s
+
+
+def test_compute_combo_metrics_subtracts_discount_and_duration_saved():
+    bundle = {
+        "id": "combo-unas-cejas",
+        "components": ["unas", "cejas"],
+        "discount_cop": 15000,
+        "duration_saved_min": 30,
+    }
+    subs = [
+        {"id": "acrilicas", "category": "unas", "price": 90000, "duration": 120},
+        {"id": "laminado-cejas", "category": "cejas", "price": 60000, "duration": 60},
+    ]
+    price, duration = config.compute_combo_metrics(bundle, subs)
+    assert duration == (120 + 60) - 30
+    assert price == (90000 + 60000) - 15000
+
+    # Si algún sub-servicio aún no tiene precio numérico definido (None), el total queda None
+    subs_no_price = [
+        {"id": "acrilicas", "category": "unas", "price": None, "duration": 120},
+        {"id": "laminado-cejas", "category": "cejas", "price": 60000, "duration": 60},
+    ]
+    price2, duration2 = config.compute_combo_metrics(bundle, subs_no_price)
+    assert duration2 == 150
+    assert price2 is None
+
+
+def test_resolve_service_supports_composite_and_dict_combo_selections():
+    by_composite = config.resolve_service("combo-unas-cejas:acrilicas+laminado-cejas")
+    assert by_composite is not None
+    assert by_composite["id"] == "combo-unas-cejas:acrilicas+laminado-cejas"
+    assert by_composite["base_id"] == "combo-unas-cejas"
+    assert by_composite["name"] == "Combo Uñas + Cejas (Uñas acrílicas + Laminado de cejas)"
+    assert by_composite["sub_services"] == ["acrilicas", "laminado-cejas"]
+
+    by_dict = config.resolve_service(
+        "combo-unas-cejas",
+        {"unas": "acrilicas", "cejas": "laminado-cejas"},
+    )
+    assert by_dict == by_composite
+
+    # Categoría incorrecta o selección incompleta se rechaza
+    assert config.resolve_service("combo-unas-cejas:lifting+laminado-cejas") is None
+    assert config.resolve_service("combo-unas-cejas", {"unas": "acrilicas"}) is None
+    assert config.resolve_service("combo-unas-cejas:acrilicas") is None
+    # Cuando no se envían sub-servicios (compatibilidad base), devuelve el combo base
+    preview = config.resolve_service("combo-unas-cejas")
+    assert preview is not None and preview["id"] == "combo-unas-cejas"
+

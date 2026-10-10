@@ -41,10 +41,9 @@ def seed_attempts(server, count: int, ip: str = "9.9.9.9", phone: str | None = N
     )
 
 
-def expire_booking(server, code: str, dias_atras: int = 1) -> None:
+def expire_booking(server, code: str) -> None:
     server.sql(
-        f"UPDATE bookings SET date = date(date('now', '-5 hours'), '-{dias_atras} days'), "
-        f"created_at = datetime('now', '-{config.PENDING_TTL_HOURS + 1} hours') WHERE code = '{code}'"
+        f"UPDATE bookings SET created_at = datetime('now', '-{config.PENDING_TTL_HOURS + 1} hours') WHERE code = '{code}'"
     )
 
 

@@ -87,3 +87,41 @@ def test_configured_whatsapp_is_a_valid_colombian_mobile():
     import config
     assert normalize_phone(config.WHATSAPP) == config.WHATSAPP
     assert whatsapp_url("hola").startswith(f"https://wa.me/{config.WHATSAPP}?text=")
+
+
+def test_validate_booking_resolves_combo_selections():
+    out = validate_booking({
+        **VALID,
+        "service_id": "combo-unas-pestanas",
+        "combo_selections": {"unas": "semipermanente", "pestanas": "lifting"},
+    })
+    assert out["service"]["id"] == "combo-unas-pestanas:semipermanente+lifting"
+    assert out["service"]["name"] == "Combo Uñas + Pestañas (Semipermanente + Lifting de pestañas)"
+
+
+def test_validate_booking_resolves_composite_combo_id():
+    out = validate_booking({
+        **VALID,
+        "service_id": "combo-triple:semipermanente+diseno-cejas+pelo-a-pelo",
+    })
+    assert out["service"]["id"] == "combo-triple:semipermanente+diseno-cejas+pelo-a-pelo"
+    assert out["service"]["name"] == "Combo Triple (Semipermanente + Diseño de cejas + Extensiones pelo a pelo)"
+
+
+def test_validate_booking_rejects_incomplete_or_mismatched_combo():
+    with pytest.raises(ValidationError) as e1:
+        validate_booking({
+            **VALID,
+            "service_id": "combo-unas-cejas",
+            "combo_selections": {"unas": "semipermanente"},
+        })
+    assert "service_id" in e1.value.errors
+
+    with pytest.raises(ValidationError) as e2:
+        validate_booking({
+            **VALID,
+            "service_id": "combo-unas-cejas",
+            "combo_selections": {"unas": "semipermanente", "cejas": "lifting"},
+        })
+    assert "service_id" in e2.value.errors
+

@@ -81,23 +81,38 @@
         <div class="stats" data-stats></div>
 
         <div class="toolbar">
-          <label class="select">
-            <span class="sr-only">Periodo</span>
-            <select data-range>
-              <option value="upcoming">Próximos 30 días</option>
-              <option value="today">Hoy</option>
-              <option value="week">Próximos 7 días</option>
-              <option value="past">Últimos 30 días</option>
-            </select>
-          </label>
-          <div class="chips" role="group" aria-label="Estado" data-status-filters>
-            <button class="chip is-active" type="button" data-status="" aria-pressed="true">Todas</button>
-            <button class="chip" type="button" data-status="pending" aria-pressed="false">Pendientes</button>
-            <button class="chip" type="button" data-status="confirmed" aria-pressed="false">Confirmadas</button>
-            <button class="chip" type="button" data-status="completed" aria-pressed="false">Completadas</button>
-            <button class="chip" type="button" data-status="cancelled" aria-pressed="false">Canceladas</button>
+          <div class="toolbar-top">
+            <label class="select">
+              <span class="sr-only">Periodo</span>
+              <select data-range>
+                <option value="upcoming">Próximos 30 días</option>
+                <option value="today">Hoy</option>
+                <option value="week">Próximos 7 días</option>
+                <option value="past">Últimos 30 días</option>
+              </select>
+            </label>
+            <button class="btn btn-outline btn-sm" type="button" data-refresh>Actualizar</button>
           </div>
-          <button class="btn btn-outline btn-sm" type="button" data-refresh>Actualizar</button>
+          <div class="toolbar-chips-block">
+            <div class="toolbar-chips-head">
+              <span class="toolbar-chips-label">Filtrar por estado</span>
+              <span class="step-swipe-hint" data-status-swipe-hint hidden aria-hidden="true">
+                Desliza
+                <svg class="icon icon-inline" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </span>
+            </div>
+            <div class="toolbar-chips-wrap" data-status-wrap>
+              <div class="chips" role="group" aria-label="Estado" data-status-filters>
+                <button class="chip is-active" type="button" data-status="" aria-pressed="true">Todas</button>
+                <button class="chip" type="button" data-status="pending" aria-pressed="false">Pendientes</button>
+                <button class="chip" type="button" data-status="confirmed" aria-pressed="false">Confirmadas</button>
+                <button class="chip" type="button" data-status="completed" aria-pressed="false">Completadas</button>
+                <button class="chip" type="button" data-status="cancelled" aria-pressed="false">Canceladas</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="toast" role="status" data-toast hidden></div>
@@ -143,25 +158,37 @@
       <!--  Editar cita -->
       <div class="modal" data-edit-modal hidden>
         <div class="modal-card card" role="dialog" aria-modal="true" aria-labelledby="edit-title">
-          <h2 class="card-title" id="edit-title">Editar cita</h2>
-          <p class="muted"><strong data-edit-customer></strong> · <span data-edit-when></span></p>
-          <p class="muted">Solo se puede cambiar la fecha, el horario y el servicio.</p>
+          <div class="modal-head">
+            <div class="modal-head-text">
+              <h2 class="card-title" id="edit-title">Editar cita</h2>
+              <p class="modal-sub muted"><strong data-edit-customer></strong> · <span data-edit-when></span></p>
+            </div>
+            <button class="booking-icon-btn modal-close" type="button" data-edit-close aria-label="Cerrar"
+              title="Cerrar">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
           <form class="edit-form" data-edit-form novalidate>
-            <div class="form-grid">
+            <div class="edit-form-body">
               <label class="field field-wide">
                 <span class="field-label">Servicio</span>
                 <select name="service_id" required></select>
               </label>
-              <label class="field">
-                <span class="field-label">Fecha</span>
-                <input name="date" type="date" required>
-              </label>
-              <label class="field">
-                <span class="field-label">Horario</span>
-                <select name="time" required></select>
-              </label>
+              <div class="edit-combo-box field-wide" data-edit-combo-fields hidden></div>
+              <div class="edit-row-2">
+                <label class="field">
+                  <span class="field-label">Fecha</span>
+                  <input name="date" type="date" required>
+                </label>
+                <label class="field">
+                  <span class="field-label">Horario</span>
+                  <select name="time" required></select>
+                </label>
+              </div>
+              <p class="form-message" role="alert" data-edit-message hidden></p>
             </div>
-            <p class="form-message" role="alert" data-edit-message hidden></p>
             <div class="modal-actions">
               <button class="btn btn-outline" type="button" data-edit-cancel>Cancelar</button>
               <button class="btn btn-dark" type="submit">Guardar cambios</button>

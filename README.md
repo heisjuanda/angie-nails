@@ -70,11 +70,12 @@ El WhatsApp de Angélica está en `WHATSAPP` (`57` + celular, solo dígitos).
 Otros ajustes de agenda en el mismo archivo: `SLOT_STEP_MIN`,
 `MIN_NOTICE_HOURS`, `BOOKING_WINDOW_DAYS`, `PENDING_TTL_HOURS`.
 
-`PENDING_TTL_HOURS` (12 h) es el plazo que tiene Angélica para responder, y solo aplica a **citas próximas**: una
-pendiente para dentro de tres semanas no se libera por antigüedad de la reserva, porque el horario volvería al
-calendario mientras la clienta sigue esperando respuesta y otra persona podría tomarlo (`db._active`). Superada la
-cita, una pendiente sin confirmar ya no bloquea nada. El panel marca las vencidas como tales y se pueden cancelar a
-mano si la clienta nunca contestó.
+`PENDING_TTL_HOURS` (24 h) es el plazo que tiene Angélica para confirmar una reserva pendiente: una cita pendiente
+permanece activa mientras no hayan pasado 24 h desde su creación **y** la hora de inicio de la cita aún esté en el
+futuro (`db._active`). Apenas se cumple cualquiera de las dos cosas (pasan 24 h sin confirmar o llega la hora de la
+cita), la pendiente vence y deja de bloquear el horario y el teléfono de la clienta. Si venció por las 24 h pero la
+fecha de la cita aún es futura y nadie tomó el turno, Angélica todavía puede confirmarla desde el panel; en cambio, si
+la hora de la cita ya pasó, ya no se puede confirmar.
 
 `BOOKING_WINDOW_DAYS` es el único que se puede sobreescribir desde el entorno
 (`npx wrangler secret put BOOKING_WINDOW_DAYS`, o en `.dev.vars`), sin editar código.
@@ -119,7 +120,7 @@ CGNAT un falso positivo por IP es fácil y nunca debe dejar el error sin salida.
 Las citas y los bloqueos cuya **fecha de la cita** tiene más de `RETENTION_DAYS` (120) días se
 borran de forma permanente al crear una reserva nueva (`db.purge_old_bookings` /
 `db.purge_old_blocks`, disparadas desde `public_api.create_booking`). No hace falta filtrar por
-estado: toda cita con fecha pasada es final (una pendiente vencida ya no se puede confirmar).
+estado: toda cita con fecha pasada es final (una pendiente cuyo horario ya pasó no se puede confirmar).
 
 120 días coincide con `MAX_RANGE_DAYS`, o sea Angélica puede ver en el panel todo lo que la tabla
 aún guarda. Es **borrado duro e irreversible**: si algún día se quieren métricas históricas, hay
@@ -172,13 +173,14 @@ BUNDLES = [
    pueda reintentar y reciba su código, en lugar de ver "ese horario ya está reservado" mientras Angélica tiene una
    cita que nadie sabe que existe.
 
-5. La clienta abre WhatsApp con el resumen y Angélica confirma. Una cita pendiente sigue reservando el horario hasta
-   que su cita empiece, o hasta que Angélica la confirme o cancele.
+5. La clienta abre WhatsApp con el resumen y Angélica confirma. Una cita pendiente reserva el horario hasta por
+   `PENDING_TTL_HOURS` (24 h) o hasta que llegue la hora de la cita (lo que ocurra primero), salvo que Angélica la
+   confirme o cancele antes.
 
 ## Aviso de cita nueva (WhatsApp / email)
 
 Sin esto, Angélica solo se entera de una reserva si tiene el panel abierto (el
-navegador hace *poll* cada 60 s) y la cita pendiente se libera a las 12 h. El
+navegador hace *poll* cada 60 s) y la cita pendiente se libera a las 24 h. El
 aviso cierra ese hueco: al guardar la reserva, el Worker le manda el resumen
 (código, servicio, fecha, hora, clienta, barrio, dirección y notas) por
 WhatsApp y/o email. Es **best-effort**: si un canal falla, la reserva igual

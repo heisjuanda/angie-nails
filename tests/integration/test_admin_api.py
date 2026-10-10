@@ -280,7 +280,7 @@ def test_completing_a_booking_frees_the_slot(api, admin, free_day):
     assert slots_of(api, free_day)["08:00"] is True
 
 
-def test_pending_of_a_future_booking_survives_the_ttl(server, api, admin, free_day):
+def test_pending_of_a_future_booking_survives_within_ttl_and_expires_after(server, api, admin, free_day):
     code = _book(api, free_day, "08:00")
     server.sql(f"UPDATE bookings SET created_at = datetime('now', '-13 hours') WHERE code = '{code}'")
 
@@ -288,21 +288,36 @@ def test_pending_of_a_future_booking_survives_the_ttl(server, api, admin, free_d
         "/api/admin/bookings", params={"from": free_day.isoformat(), "to": free_day.isoformat()}
     ).json()["bookings"]
     assert items[0]["code"] == code
-    assert items[0]["expired"] is False, "la pendiente de una cita futura se venció por antigüedad"
-    # Y el horario sigue reservado: es lo que esperaría la clienta.
+    assert items[0]["expired"] is False, "la pendiente venció antes de cumplir las 24 h de TTL"
     assert slots_of(api, free_day)["08:00"] is False
+
+    expire_booking(server, code)
+    items_after = admin.get(
+        "/api/admin/bookings", params={"from": free_day.isoformat(), "to": free_day.isoformat()}
+    ).json()["bookings"]
+    assert items_after[0]["code"] == code
+    assert items_after[0]["expired"] is True, "la pendiente futura no venció tras superar PENDING_TTL_HOURS"
+    assert slots_of(api, free_day)["08:00"] is True
 
 
 def test_pending_stops_blocking_once_the_appointment_has_passed(server, api, admin, free_day):
     code = _book(api, free_day, "08:00")
     assert slots_of(api, free_day)["08:00"] is False
 
-    expire_booking(server, code)
-    assert slots_of(api, free_day)["08:00"] is True
-
+    # La hora de la cita ya pasó (ayer), pero fue creada hace apenas 1 hora (< PENDING_TTL_HOURS):
+    # igual debe figurar como vencida de inmediato y no permitir confirmarse.
     ayer = (availability.now_local().date() - timedelta(days=1)).isoformat()
+    server.sql(
+        f"UPDATE bookings SET date = '{ayer}', created_at = datetime('now', '-1 hours') WHERE code = '{code}'"
+    )
+
     items = admin.get("/api/admin/bookings", params={"from": ayer, "to": ayer}).json()["bookings"]
-    assert items[0]["code"] == code and items[0]["expired"] is True
+    mine = next(b for b in items if b["code"] == code)
+    assert mine["expired"] is True
+
+    r = admin.patch(f"/api/admin/bookings/{code}", json={"status": "confirmed"})
+    assert r.status_code == 422
+    assert "ya pasó" in r.json()["error"]
 
 
 def test_list_bookings_and_filters(api, admin, free_day):
@@ -598,6 +613,22 @@ def test_edit_moves_to_occupied_slot_on_new_date_conflicts(api, admin, free_day,
     r = admin.patch(f"/api/admin/bookings/{code1}", json={"date": other_day.isoformat(), "time": "10:00"})
     assert r.status_code == 409
     assert "ya lo ocupa" in r.json()["error"]
+
+
+def test_edit_updates_combo_and_subservices(api, admin, free_day):
+    code = _book(api, free_day, "08:00")
+    r = admin.patch(
+        f"/api/admin/bookings/{code}",
+        json={
+            "service_id": "combo-unas-pestanas",
+            "combo_selections": {"unas": "semipermanente", "pestanas": "lifting"},
+        },
+    )
+    assert r.status_code == 200, r.text
+    booking = r.json()["booking"]
+    assert booking["service_id"] == "combo-unas-pestanas:semipermanente+lifting"
+    assert booking["service_name"] == "Combo Uñas + Pestañas (Semipermanente + Lifting de pestañas)"
+    assert booking["end"] == "10:30"
 
 
 #  bloqueos

@@ -62,11 +62,20 @@ def parse_block(data: dict) -> dict:
 #  edición de citas: horario, servicio y fecha.
 
 EDITABLE_STATUSES = {"pending", "confirmed"}
-EDIT_FIELDS = ("time", "service_id", "date")
+EDIT_FIELDS = ("time", "service_id", "date", "combo_selections")
 
 
 def has_edit_fields(data) -> bool:
     return isinstance(data, dict) and any(f in data for f in EDIT_FIELDS)
+
+
+def is_past_booking(row: dict, now=None) -> bool:
+    if now is None:
+        now = availability.now_local()
+    today = now.date()
+    now_min = now.hour * 60 + now.minute
+    d = date.fromisoformat(row["date"])
+    return d < today or (d == today and int(row["start_min"]) <= now_min)
 
 
 def valid_start_minutes(day: date) -> set[int]:
@@ -125,8 +134,11 @@ def parse_booking_edit(data: dict, row: dict, now=None) -> dict:
     if target_date < today or (target_date == today and start_min <= now_min):
         raise AdminError("Ese horario ya pasó.")
 
-    if "service_id" in data:
-        service = config.SERVICES_BY_ID.get(str(data.get("service_id") or ""))
+    if "service_id" in data or "combo_selections" in data:
+        raw_sid = str(data.get("service_id") if "service_id" in data else (row.get("service_id") or "")).partition(":")[0]
+        if "service_id" in data and ":" in str(data.get("service_id") or ""):
+            raw_sid = str(data.get("service_id"))
+        service = config.resolve_service(raw_sid, data.get("combo_selections"))
         if not service:
             raise AdminError("Elige un servicio válido.")
         out.update({

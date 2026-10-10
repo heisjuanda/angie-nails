@@ -155,6 +155,21 @@ def test_combo_books_as_one_slot_and_blocks_its_own_duration(api, server, free_d
     assert not any(slots[t] for t in ["08:00", "08:30", "09:00", "09:30", "10:00"])
     assert slots["10:30"]
 
+    # Y con sub-servicios elegidos guarda el ID compuesto y el nombre detallado
+    payload = booking_payload(free_day, "10:30", service="combo-unas-cejas", phone="300 987 6543")
+    payload["combo_selections"] = {"unas": "acrilicas", "cejas": "laminado-cejas"}
+    r2 = api.post("/api/bookings", json=payload)
+    assert r2.status_code == 201, r2.text
+    expected_name = "Combo Uñas + Cejas (Uñas acrílicas + Laminado de cejas)"
+    assert r2.json()["summary"]["service"] == expected_name
+    row2 = server.sql(
+        "SELECT service_id, service_name, duration_min FROM bookings "
+        f"WHERE date = '{free_day.isoformat()}' AND start_min = 630"
+    )[0]
+    assert row2["service_id"] == "combo-unas-cejas:acrilicas+laminado-cejas"
+    assert row2["service_name"] == expected_name
+    assert row2["duration_min"] == config.DURACION_COMBO_X
+
 
 def test_long_combo_offers_slots_until_closing_and_blocks_them(api, free_day):
     assert config.SERVICES_BY_ID["combo-triple"]["duration"] == config.DURACION_TRIPLE_X
@@ -371,9 +386,9 @@ def test_unconfirmed_pending_booking_expires_and_frees_slot(server, api, admin, 
     expire_booking(server, first)
     assert slots_of(api, free_day)["08:00"]
 
-    ayer = (availability.now_local().date() - timedelta(days=1)).isoformat()
+    day_iso = free_day.isoformat()
     listed = {b["code"]: b for b in admin.get(
-        "/api/admin/bookings", params={"from": ayer, "to": ayer}).json()["bookings"]}
+        "/api/admin/bookings", params={"from": day_iso, "to": day_iso}).json()["bookings"]}
     assert listed[first]["expired"] is True
 
 
@@ -397,7 +412,6 @@ def test_expired_pending_can_still_be_confirmed_if_slot_free(server, api, admin,
     expire_booking(server, code)
     assert slots_of(api, free_day, "henna")["15:00"]
     assert admin.patch(f"/api/admin/bookings/{code}", json={"status": "confirmed"}).status_code == 200
-    server.sql(f"UPDATE bookings SET date = '{free_day.isoformat()}' WHERE code = '{code}'")
     assert not slots_of(api, free_day, "henna")["15:00"]
 
 
