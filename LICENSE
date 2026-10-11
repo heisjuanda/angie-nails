@@ -1,92 +1,82 @@
-Business Source License 1.1
+LICENCIA PROPIETARIA — TODOS LOS DERECHOS RESERVADOS
+PROPRIETARY LICENSE — ALL RIGHTS RESERVED
 
-Parameters
+Copyright (c) 2026 Juan David Moreno Alfonso
+Contacto / Contact: heisjuanda@gmail.com
 
-Licensor:             Juan David Moreno Alfonso
-Licensed Work:        AC Luxury Aesthetics
-                      The Licensed Work is (c) 2026 Juan David Moreno Alfonso
-Additional Use Grant: You may use the Licensed Work for any non-commercial
-                      purpose, including personal projects, education,
-                      research, or non-profit internal use, and you may
-                      modify and redistribute derivative works, provided
-                      that you comply with the terms of this License.
-Change Date:          2030-10-06
-Change License:       MIT License
+------------------------------------------------------------------------
+ESPAÑOL
+------------------------------------------------------------------------
 
-For information about alternative licensing arrangements for the Licensed
-Work, please contact: heisjuanda@gmail.com
+1. Titularidad del Software
+El código fuente, la arquitectura, las bases de datos, las pruebas y la
+documentación técnica contenidos en este repositorio (el "Software") son
+propiedad intelectual exclusiva de Juan David Moreno Alfonso (el "Autor"),
+protegidos por las leyes de derechos de autor y los tratados internacionales
+aplicables.
 
----
+2. Licencia de Uso para el Cliente
+El Autor otorga únicamente a AC Luxury Aesthetics (el "Cliente") el derecho
+de utilizar el Software en producción para la operación comercial de su
+propio negocio, sujeto a los acuerdos contractuales vigentes entre el Autor
+y el Cliente.
 
-Terms
+3. Propiedad de Marca y Material Gráfico
+El nombre comercial "AC Luxury Aesthetics", así como las fotografías del
+portafolio (ubicadas en `public/img/`), logotipos, identidad visual y textos
+comerciales del estudio son propiedad exclusiva de AC Luxury Aesthetics.
 
-The Licensor hereby grants you the right to copy, modify, create derivative
-works, redistribute, and make non-production use of the Licensed Work. The
-Licensor may make an Additional Use Grant, above, permitting limited
-production use.
+4. Restricciones para Terceros
+Salvo la simple visualización del código en el repositorio público con fines
+de revisión de portafolio profesional, queda estrictamente prohibido a
+cualquier persona o entidad sin la autorización previa y por escrito del
+Autor:
+  a) Copiar, clonar para uso propio, reproducir o redistribuir el Software
+     o cualquiera de sus partes.
+  b) Modificar, adaptar o crear obras derivadas a partir del Software.
+  c) Utilizar el Software, su diseño o los activos del Cliente con fines
+     comerciales, empresariales, personales o educativos.
+  d) Sublicenciar, vender, alquilar o transferir el Software a terceros.
 
-**Commercial use of the Licensed Work is not permitted under this License.**
-"Commercial use" means any use of the Licensed Work — directly or as part
-of a service, product, or application — in exchange for monetary
-compensation, or any use that primarily benefits a commercial entity or
-generates revenue.
+5. Exención de Responsabilidad
+EN LA MÁXIMA MEDIDA PERMITIDA POR LA LEY APLICABLE, EL SOFTWARE SE
+PROPORCIONA "TAL CUAL" ("AS IS"), SIN GARANTÍAS DE NINGÚN TIPO, EXPRESAS O
+IMPLÍCITAS, INCLUYENDO PERO NO LIMITADO A GARANTÍAS DE COMERCIABILIDAD,
+IDONEIDAD PARA UN PROPÓSITO PARTICULAR E INEXISTENCIA DE INFRACCIÓN.
 
-Effective on the Change Date, or the fourth anniversary of the first
-publicly available distribution of a specific version of the Licensed Work
-under this License, whichever comes first, the Licensor hereby grants you
-rights under the terms of the Change License, and the rights granted in the
-paragraph above terminate.
+------------------------------------------------------------------------
+ENGLISH
+------------------------------------------------------------------------
 
-If your use of the Licensed Work does not comply with the requirements
-currently in effect as described in this file, you must purchase a
-commercial license from the Licensor, its affiliated entities, or authorized
-resellers, or you must refrain from using the Licensed Work.
+1. Software Ownership
+The source code, architecture, database schemas, tests, and technical
+documentation contained in this repository (the "Software") are the
+exclusive intellectual property of Juan David Moreno Alfonso (the "Licensor"),
+protected by applicable copyright laws and international treaties.
 
-All copies of the original and modified Licensed Work, and derivative works
-of the Licensed Work, are subject to this License. This License applies
-separately for each version of the Licensed Work and the Change Date may
-vary for each version of the Licensed Work released by the Licensor.
+2. Client Usage Grant
+The Licensor grants solely to AC Luxury Aesthetics (the "Client") the right
+to run and use the Software in production for the commercial operation of
+its own business, subject to the agreements in effect between the Licensor
+and the Client.
 
-You must conspicuously display this License on each original or modified
-copy of the Licensed Work. If you receive the Licensed Work in original or
-modified form from a third party, the terms and conditions set forth in this
-License apply to your use of that work.
+3. Brand and Media Ownership
+The trade name "AC Luxury Aesthetics", as well as all portfolio photographs
+(located in `public/img/`), logos, visual identity, and business copy are
+the exclusive property of AC Luxury Aesthetics.
 
-Any use of the Licensed Work in violation of this License will automatically
-terminate your rights under this License for the current and all other
-versions of the Licensed Work.
+4. Restrictions for Third Parties
+Except for viewing the source code in the public repository for professional
+portfolio review purposes, no person or entity may, without prior written
+permission from the Licensor:
+  a) Copy, reproduce, or redistribute the Software or any portion of it.
+  b) Modify, adapt, or create derivative works based on the Software.
+  c) Use the Software, its design, or the Client's assets for any
+     commercial, non-commercial, personal, or educational purpose.
+  d) Sublicense, sell, lease, or transfer the Software to any third party.
 
-This License does not grant you any right in any trademark or logo of
-Licensor or its affiliates (provided that you may use a trademark or logo of
-Licensor as expressly required by this License).
-
-TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSED WORK IS PROVIDED ON
-AN "AS IS" BASIS. LICENSOR HEREBY DISCLAIMS ALL WARRANTIES AND CONDITIONS,
-EXPRESS OR IMPLIED, INCLUDING (WITHOUT LIMITATION) WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND
-TITLE.
-
-MariaDB hereby grants you permission to use this License's text to license
-your works, and to refer to it using the trademark "Business Source License",
-as long as you comply with the Covenants of Licensor below.
-
-Covenants of Licensor
-
-In consideration of the right to use this License's text and the "Business
-Source License" name and trademark, Licensor covenants to MariaDB, and to
-all who receive notice of this covenant:
-
-1. To specify as the Change License the GPL Version 2.0 or any later
-   version, or a license that is compatible with GPL Version 2.0 or a later
-   version, where "compatible" means that software provided under the Change
-   License can be included in a program with software provided under GPL
-   Version 2.0 or a later version. Licensor may specify additional Change
-   Licenses without limitation.
-
-2. To either: (a) specify an additional grant of rights to use that does not
-   impose any additional restriction on the right granted in this License, as
-   the Additional Use Grant; or (b) insert the text "None".
-
-3. To specify a Change Date.
-
-4. Not to modify this License in any other way.
+5. Disclaimer of Warranty
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED
+"AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, AND NONINFRINGEMENT.

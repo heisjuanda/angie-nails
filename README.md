@@ -110,3 +110,8 @@ npm run test:smoke   # verificación rápida de humo
 npm run db:migrate:remote   # aplica migraciones pendientes en D1 remoto
 npm run deploy              # publica el Worker en Cloudflare
 ```
+
+## Licencia
+
+Software propietario — Todos los derechos reservados © 2026 **Juan David Moreno Alfonso**. Uso comercial autorizado únicamente para **AC Luxury Aesthetics**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+
