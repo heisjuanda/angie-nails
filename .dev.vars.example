@@ -34,3 +34,6 @@ TOTP_SECRET=
 # Orígenes adicionales permitidos para CORS (por ejemplo tu futuro dominio propio):
 # ALLOWED_ORIGINS=https://tu-dominio.com
 
+# Dirección exacta del estudio (se muestra sólo tras confirmar una reserva).
+# En producción: npx wrangler secret put ESTUDIO_DIRECCION
+# ESTUDIO_DIRECCION=Av. 3BN # 56-00, La Flora

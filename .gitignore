@@ -3,8 +3,10 @@ node_modules/
 .dev.vars*
 !.dev.vars.example
 .env*
-.secrets.production.local
+.secrets*
 !.env.example
+*.db
+*.sqlite*
 
 # python
 .venv/
@@ -13,9 +15,11 @@ python_modules/
 src/vendor/
 __pycache__/
 .pytest_cache/
+.ruff_cache/
 
-# editor / sistema
+# editor / sistema / agentes
 .vscode-test/
 Thumbs.db
 .DS_Store
 .kilo
+.agents/

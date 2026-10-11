@@ -11,6 +11,7 @@ from pathlib import Path
 import httpx
 import pytest
 
+import mfa
 from helpers import booking_payload
 
 pytestmark = pytest.mark.smoke
@@ -22,7 +23,13 @@ SECRETS = Path(__file__).resolve().parents[2] / ".secrets.production.local"
 def _prod_secret(name: str) -> str:
     if not SECRETS.exists():
         pytest.skip("No existe .secrets.production.local")
-    values = dict(line.strip().split("=", 1) for line in SECRETS.read_text().splitlines() if "=" in line)
+    values = dict(
+        line.strip().split("=", 1)
+        for line in SECRETS.read_text().splitlines()
+        if "=" in line and not line.lstrip().startswith("#")
+    )
+    if not values.get(name):
+        pytest.skip(f"Falta {name} en .secrets.production.local")
     return values[name]
 
 
@@ -69,6 +76,13 @@ def test_admin_login_session_and_logout(client):
     assert r.status_code == 200, r.text
     cookie = r.headers["set-cookie"]
     assert "Secure" in cookie and "HttpOnly" in cookie and "SameSite=Strict" in cookie
+    if r.json().get("mfa_required"):
+        assert client.get("/api/admin/session").json() == {"authenticated": False}
+        assert client.get("/api/admin/bookings").status_code == 401
+        r = client.post("/api/admin/mfa", json={"code": mfa.current_code(_prod_secret("TOTP_SECRET"))})
+        assert r.status_code == 200, r.text
+        cookie = r.headers["set-cookie"]
+        assert "Secure" in cookie and "HttpOnly" in cookie and "SameSite=Strict" in cookie
     assert client.get("/api/admin/session").json() == {"authenticated": True}
     assert client.get("/api/admin/bookings").status_code == 200
     assert client.get("/api/admin/blocks").status_code == 200

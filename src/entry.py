@@ -22,13 +22,15 @@ def _apply_env(env) -> None:
     if _env_applied:
         return
     _env_applied = True
-    raw = getattr(env, "BOOKING_WINDOW_DAYS", None)
-    if not raw:
-        return
-    try:
-        config.BOOKING_WINDOW_DAYS = max(1, int(raw))
-    except ValueError:
-        print(f"BOOKING_WINDOW_DAYS inválido en el entorno: {raw!r}")
+    raw_window = getattr(env, "BOOKING_WINDOW_DAYS", None)
+    if raw_window:
+        try:
+            config.BOOKING_WINDOW_DAYS = max(1, int(raw_window))
+        except ValueError:
+            print(f"BOOKING_WINDOW_DAYS inválido en el entorno: {raw_window!r}")
+    raw_address = getattr(env, "ESTUDIO_DIRECCION", None)
+    if isinstance(raw_address, str) and raw_address.strip():
+        config.set_studio_address(raw_address)
 
 
 async def _drain_body(request) -> None:

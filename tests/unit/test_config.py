@@ -67,10 +67,20 @@ def test_booking_limits_are_sane():
 
 def test_studio_location_config():
     assert "La Flora" in config.ESTUDIO_BARRIO
-    assert "Calle 56" in config.ESTUDIO_DIRECCION
+    assert config.ESTUDIO_DIRECCION
     assert "Todos los Santos" in config.ESTUDIO_REFERENCIA
     assert config.ESTUDIO_MAPS_URL.startswith("https://maps.google.com")
     assert config.ESTUDIO_WAZE_URL.startswith("https://waze.com")
+
+    orig_addr, orig_maps = config.ESTUDIO_DIRECCION, config.ESTUDIO_MAPS_URL
+    try:
+        config.set_studio_address("  Carrera 10 # 20-30  ")
+        assert config.ESTUDIO_DIRECCION == "Carrera 10 # 20-30"
+        assert "Carrera+10+%23+20-30" in config.ESTUDIO_MAPS_URL
+        assert "La+Flora" in config.ESTUDIO_MAPS_URL
+    finally:
+        config.ESTUDIO_DIRECCION = orig_addr
+        config.ESTUDIO_MAPS_URL = orig_maps
 
 
 def test_only_bundles_have_components_and_savings_fields():

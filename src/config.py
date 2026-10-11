@@ -1,4 +1,5 @@
 from datetime import timedelta, timezone
+from urllib.parse import quote_plus
 
 # Precio de referencia en COP. None = se muestra "$ X" en la web.
 PRECIO_X = None
@@ -17,12 +18,27 @@ HORA_FIN_X = "18:00"
 
 WHATSAPP = "573245967079"
 
-# Ubicación del estudio (Semi-privado: la dirección exacta se revela sólo tras reservar)
+# Ubicación del estudio (Semi-privado: la dirección exacta se inyecta desde ESTUDIO_DIRECCION
+# en el entorno y se revela sólo tras reservar; por defecto usa la referencia pública del sector).
 ESTUDIO_BARRIO = "La Flora, Cali"
 ESTUDIO_REFERENCIA = "Al lado de la Parroquia Todos los Santos (Av. 3BN # 56-00)"
-ESTUDIO_DIRECCION = "Calle 56 # 3AN-111"
-ESTUDIO_MAPS_URL = "https://maps.google.com/?q=Calle+56+%233AN-111+La+Flora+Cali"
+ESTUDIO_DIRECCION = "Av. 3BN # 56-00, La Flora"
+ESTUDIO_MAPS_URL = "https://maps.google.com/?q=Parroquia+Todos+los+Santos+La+Flora+Cali"
 ESTUDIO_WAZE_URL = "https://waze.com/ul?ll=3.4735,-76.5165&navigate=yes"
+
+
+def maps_url_for(address: str, neighborhood: str = ESTUDIO_BARRIO) -> str:
+    query = quote_plus(f"{address.strip()} {neighborhood.strip()}".strip())
+    return f"https://maps.google.com/?q={query}"
+
+
+def set_studio_address(address: str) -> None:
+    global ESTUDIO_DIRECCION, ESTUDIO_MAPS_URL
+    clean = " ".join(str(address or "").split())
+    if not clean:
+        return
+    ESTUDIO_DIRECCION = clean
+    ESTUDIO_MAPS_URL = maps_url_for(clean)
 
 # Servicios
 
