@@ -50,16 +50,16 @@ CATEGORIES = [
 ]
 
 SERVICES = [
-    {"id": "semipermanente", "category": "unas", "name": "Semipermanente", "price": PRECIO_X, "duration": DURACION_X},
-    {"id": "acrilicas", "category": "unas", "name": "Uñas acrílicas", "price": PRECIO_X, "duration": DURACION_X},
-    {"id": "polygel", "category": "unas", "name": "Polygel", "price": PRECIO_X, "duration": DURACION_X},
-    {"id": "nail-art", "category": "unas", "name": "Nail art / diseño", "price": PRECIO_X, "duration": DURACION_X},
-    {"id": "diseno-cejas", "category": "cejas", "name": "Diseño de cejas", "price": PRECIO_X, "duration": DURACION_X},
-    {"id": "laminado-cejas", "category": "cejas", "name": "Laminado de cejas", "price": PRECIO_X, "duration": DURACION_X},
-    {"id": "henna", "category": "cejas", "name": "Henna", "price": PRECIO_X, "duration": DURACION_X},
-    {"id": "pelo-a-pelo", "category": "pestanas", "name": "Extensiones pelo a pelo", "price": PRECIO_X, "duration": DURACION_X},
-    {"id": "volumen", "category": "pestanas", "name": "Volumen", "price": PRECIO_X, "duration": DURACION_X},
-    {"id": "lifting", "category": "pestanas", "name": "Lifting de pestañas", "price": PRECIO_X, "duration": DURACION_X},
+    {"id": "semipermanente", "category": "unas", "name": "Semipermanente", "price": 70000, "duration": 60},
+    {"id": "acrilicas", "category": "unas", "name": "Uñas acrílicas", "price": 150000, "duration": 150},
+    {"id": "polygel", "category": "unas", "name": "Polygel", "price": 170000, "duration": 150},
+    {"id": "nail-art", "category": "unas", "name": "Nail art / diseño", "price": 65000, "duration": 60},
+    {"id": "diseno-cejas", "category": "cejas", "name": "Diseño de cejas", "price": 30000, "duration": 30},
+    {"id": "henna", "category": "cejas", "name": "Henna", "price": 40000, "duration": 40},
+    {"id": "laminado-cejas", "category": "cejas", "name": "Laminado de cejas", "price": 75000, "duration": 60},
+    {"id": "lifting", "category": "pestanas", "name": "Lifting de pestañas", "price": 90000, "duration": 60},
+    {"id": "pelo-a-pelo", "category": "pestanas", "name": "Extensiones pelo a pelo", "price": 120000, "duration": 120},
+    {"id": "volumen", "category": "pestanas", "name": "Volumen", "price": 160000, "duration": 160},
 ]
 
 _SERVICES_BY_CATEGORY: dict[str, list[dict]] = {}
@@ -87,7 +87,7 @@ def _build_bundle(b: dict) -> dict:
     for cat in b["components"]:
         cat_items = _SERVICES_BY_CATEGORY.get(cat, [])
         if cat_items:
-            default_subs.append(min(cat_items, key=lambda x: (x["duration"], x["price"] or 0)))
+            default_subs.append(cat_items[0])
     price, duration = compute_combo_metrics(b, default_subs)
     return {**b, "price": price, "duration": duration}
 
@@ -98,15 +98,15 @@ BUNDLES = [
         "category": "combos",
         "name": "Combo Uñas + Cejas",
         "components": ["unas", "cejas"],
-        "discount_cop": 0,
-        "duration_saved_min": 30,
+        "discount_cop": 10000,
+        "duration_saved_min": 15,
     }),
     _build_bundle({
         "id": "combo-unas-pestanas",
         "category": "combos",
         "name": "Combo Uñas + Pestañas",
         "components": ["unas", "pestanas"],
-        "discount_cop": 0,
+        "discount_cop": 20000,
         "duration_saved_min": 30,
     }),
     _build_bundle({
@@ -114,16 +114,16 @@ BUNDLES = [
         "category": "combos",
         "name": "Combo Cejas + Pestañas",
         "components": ["cejas", "pestanas"],
-        "discount_cop": 0,
-        "duration_saved_min": 30,
+        "discount_cop": 15000,
+        "duration_saved_min": 25,
     }),
     _build_bundle({
         "id": "combo-triple",
         "category": "combos",
         "name": "Combo Triple",
         "components": ["unas", "cejas", "pestanas"],
-        "discount_cop": 0,
-        "duration_saved_min": 60,
+        "discount_cop": 30000,
+        "duration_saved_min": 45,
     }),
 ]
 

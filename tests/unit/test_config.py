@@ -21,8 +21,8 @@ def test_durations_are_positive_minutes():
         assert isinstance(s["duration"], int), s["id"]
         assert s["duration"] > 0, s["id"]
         if s["category"] == "combos":
-            assert s["duration"] <= config.DURACION_X * 3, s["id"]
-            assert s["duration"] >= config.DURACION_X, s["id"]
+            assert s["duration"] <= 600, s["id"]
+            assert s["duration"] >= 30, s["id"]
 
 
 def test_bundles_come_first_so_they_are_offered_first():

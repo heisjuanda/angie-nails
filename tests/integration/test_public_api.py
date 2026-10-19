@@ -28,7 +28,7 @@ def test_config_shape(api):
     data = r.json()
     assert {c["id"] for c in data["categories"]} == {"combos", "unas", "cejas", "pestanas"}
     assert len(data["services"]) == len(config.ALL_SERVICES)
-    assert all(s["price_label"] == "$ X" for s in data["services"])
+    assert all(s["price_label"].startswith("$ ") for s in data["services"])
     assert 6 not in data["open_weekdays"]
     assert data["turnstile_site_key"]
     # Horario por día en la convención de JS (0 = domingo); el domingo no tiene agenda.
@@ -345,7 +345,7 @@ def test_booking_data_is_stored_normalized(server, api, free_day):
     assert row["phone"] == "573105551234"
     assert row["notes"] == "<script>alert(1)</script> diseño francés"
     assert row["status"] == "pending"
-    assert row["busy_until_min"] == 9 * 60 + config.DURACION_X
+    assert row["busy_until_min"] == 9 * 60 + config.SERVICES_BY_ID["semipermanente"]["duration"]
 
 
 #  idempotencia

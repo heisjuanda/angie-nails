@@ -123,17 +123,18 @@ def test_parse_edit_service_only_keeps_the_time():
     assert edit["service_id"] == "combo-triple:semipermanente+diseno-cejas+pelo-a-pelo"
     assert edit["service_name"] == "Combo Triple (Semipermanente + Diseño de cejas + Extensiones pelo a pelo)"
     assert edit["category"] == "combos"
-    assert edit["duration_min"] == config.DURACION_TRIPLE_X
+    assert edit["duration_min"] == 165
     assert edit["start_min"] == 540                 # horario actual
-    assert edit["end_min"] == 540 + config.DURACION_TRIPLE_X
-    assert edit["busy_until_min"] == 540 + config.DURACION_TRIPLE_X
+    assert edit["end_min"] == 540 + 165
+    assert edit["busy_until_min"] == 540 + 165
 
 
 def test_parse_edit_time_and_service_together():
+    vol_dur = config.SERVICES_BY_ID["volumen"]["duration"]
     edit = al.parse_booking_edit({"time": "09:30", "service_id": "volumen"}, ROW)
     assert edit["start_min"] == 570
-    assert edit["end_min"] == 570 + 90
-    assert edit["busy_until_min"] == 570 + 90
+    assert edit["end_min"] == 570 + vol_dur
+    assert edit["busy_until_min"] == 570 + vol_dur
     assert edit["service_name"] == "Volumen"
 
 
