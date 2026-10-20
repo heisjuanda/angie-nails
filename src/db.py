@@ -19,7 +19,7 @@ _CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 
 def new_code() -> str:
-    return "AC-" + "".join(secrets.choice(_CODE_ALPHABET) for _ in range(5))
+    return f"{config.CODE_PREFIX}" + "".join(secrets.choice(_CODE_ALPHABET) for _ in range(5))
 
 
 #  público

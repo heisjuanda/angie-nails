@@ -1,4 +1,4 @@
-/* AC Luxury Aesthetics — reserva en tres pasos. */
+/* Luxe Studio — reserva en tres pasos. */
 (() => {
   const DOW = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
   const DOW_LONG = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
@@ -419,7 +419,10 @@
     if (s2) {
       if (state.date && state.time) {
         if (s2.title) s2.title.textContent = `${formatDateLong(state.date)} · ${formatTime(state.time)}`;
-        if (s2.meta) s2.meta.textContent = "Estudio La Flora · Norte de Cali";
+        if (s2.meta) {
+          const loc = state.config?.studio ? `Estudio ${state.config.studio.neighborhood} · ${state.config.studio.city}` : "Estudio El Ingenio · Sur de Cali";
+          s2.meta.textContent = loc;
+        }
       } else if (state.date) {
         if (s2.title) s2.title.textContent = `${formatDateLong(state.date)}`;
         if (s2.meta) s2.meta.textContent = "Elige un horario disponible";
@@ -953,7 +956,8 @@
     if (!number) return "#";
     const s = service();
     const val = (name) => form.elements[name]?.value.trim();
-    const lines = ["Hola Angélica ✨ Quiero agendar una cita:", ""];
+    const studioName = state.config?.studio?.name || "Luxe Studio";
+    const lines = [`Hola ${studioName} ✨ Quiero agendar una cita:`, ""];
     if (s) lines.push(`• Servicio: ${s.full_name || s.name}`);
     if (state.date) lines.push(`• Fecha: ${formatDateLong(state.date)}`);
     if (state.time) lines.push(`• Hora: ${formatTime(state.time)}`);
@@ -994,9 +998,10 @@
         const end = new Date(start.getTime() + dur * 60000);
         const pad = (n) => String(n).padStart(2, "0");
         const fmtG = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-        const locStr = data.location ? `${data.location.address}, ${data.location.neighborhood}, Cali` : "La Flora, Cali";
-        const detailsStr = `Cita confirmada en AC Luxury Aesthetics.\nCódigo: ${data.code}\nServicio: ${sName}\nHorario: ${dText}\nDirección: ${locStr}\n\nGuía de Cuidados: ${window.location.origin}/cuidados/`;
-        calBtn.href = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Cita: ${sName} · AC Luxury Aesthetics`)}&dates=${fmtG(start)}/${fmtG(end)}&details=${encodeURIComponent(detailsStr)}&location=${encodeURIComponent(locStr)}`;
+        const studioName = state.config?.studio?.name || "Luxe Studio";
+        const locStr = data.location ? `${data.location.address}, ${data.location.neighborhood}, Cali` : (state.config?.studio?.neighborhood || "El Ingenio, Cali");
+        const detailsStr = `Cita confirmada en ${studioName}.\nCódigo: ${data.code}\nServicio: ${sName}\nHorario: ${dText}\nDirección: ${locStr}\n\nGuía de Cuidados: ${window.location.origin}/cuidados/`;
+        calBtn.href = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Cita: ${sName} · ${studioName}`)}&dates=${fmtG(start)}/${fmtG(end)}&details=${encodeURIComponent(detailsStr)}&location=${encodeURIComponent(locStr)}`;
         calBtn.hidden = false;
       } catch (e) {
         calBtn.hidden = true;

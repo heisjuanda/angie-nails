@@ -1,5 +1,5 @@
 /**
- * AC Luxury Aesthetics — Utilidad centralizada de Affordance de Scroll Horizontal
+ * Luxe Studio — Utilidad centralizada de Affordance de Scroll Horizontal
  *
  * Gestiona los gradientes laterales (.can-scroll-left / .can-scroll-right)
  * y la visibilidad del botón de pista ("Desliza ->") cuando el contenido

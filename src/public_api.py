@@ -28,6 +28,7 @@ def get_config(env):
             "slot_step_min": config.SLOT_STEP_MIN,
             "window": {"first": first.isoformat(), "last": last.isoformat()},
             "whatsapp": config.WHATSAPP,
+            "studio": config.STUDIO,
             "turnstile_site_key": getattr(env, "TURNSTILE_SITE_KEY", None),
         },
         headers={"cache-control": "public, max-age=300"},

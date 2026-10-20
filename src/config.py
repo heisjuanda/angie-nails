@@ -1,5 +1,20 @@
+import json
 from datetime import timedelta, timezone
+from pathlib import Path
 from urllib.parse import quote_plus
+
+# Carga de configuración centralizada de la marca / estudio
+_CONFIG_PATH = Path(__file__).resolve().parent.parent / "site_config.json"
+if not _CONFIG_PATH.exists():
+    _CONFIG_PATH = Path("site_config.json")
+
+try:
+    with open(_CONFIG_PATH, "r", encoding="utf-8") as _f:
+        _SITE_DATA = json.load(_f)
+except Exception:
+    _SITE_DATA = {}
+
+STUDIO = _SITE_DATA.get("studio", {})
 
 # Precio de referencia en COP. None = se muestra "$ X" en la web.
 PRECIO_X = None
@@ -14,17 +29,16 @@ DURACION_TRIPLE_X = 210
 HORA_INICIO_X = "08:00"
 HORA_FIN_X = "18:00"
 
-# Horario laboral provisional (hora de Colombia, formato 24 h).
-
-WHATSAPP = "573245967079"
+WHATSAPP = STUDIO.get("whatsapp", "573001234567")
 
 # Ubicación del estudio (Semi-privado: la dirección exacta se inyecta desde ESTUDIO_DIRECCION
 # en el entorno y se revela sólo tras reservar; por defecto usa la referencia pública del sector).
-ESTUDIO_BARRIO = "La Flora, Cali"
-ESTUDIO_REFERENCIA = "Al lado de la Parroquia Todos los Santos (Av. 3BN # 56-00)"
-ESTUDIO_DIRECCION = "Av. 3BN # 56-00, La Flora"
-ESTUDIO_MAPS_URL = "https://maps.google.com/?q=Parroquia+Todos+los+Santos+La+Flora+Cali"
-ESTUDIO_WAZE_URL = "https://waze.com/ul?ll=3.4735,-76.5165&navigate=yes"
+ESTUDIO_BARRIO = f"{STUDIO.get('neighborhood', 'El Ingenio')}, {STUDIO.get('city', 'Cali')}"
+ESTUDIO_REFERENCIA = STUDIO.get("reference", "Sector El Ingenio (Cra. 123 # 123-123)")
+ESTUDIO_DIRECCION = STUDIO.get("address", "Cra. 123 # 123-123, El Ingenio")
+ESTUDIO_MAPS_URL = STUDIO.get("maps_url", "https://maps.google.com/?q=Cra+123+%23+123-123+El+Ingenio+Cali")
+ESTUDIO_WAZE_URL = STUDIO.get("waze_url", "https://waze.com/ul?q=El+Ingenio+Cali&navigate=yes")
+CODE_PREFIX = STUDIO.get("booking", {}).get("code_prefix", "LX-")
 
 
 def maps_url_for(address: str, neighborhood: str = ESTUDIO_BARRIO) -> str:
@@ -220,7 +234,7 @@ MIN_NOTICE_HOURS = 1
 # Hasta cuántos días hacia adelante se puede reservar.
 BOOKING_WINDOW_DAYS = 21
 
-# Una cita "pendiente" que Angélica no confirma se libera después de estas horas
+# Una cita "pendiente" que no se confirma se libera después de estas horas
 # (o apenas llegue la hora de inicio de la cita, lo que ocurra primero).
 PENDING_TTL_HOURS = 24
 

@@ -24,8 +24,9 @@ def format_price(price: int | None) -> str:
 
 
 def booking_whatsapp_text(b: dict) -> str:
+    studio_name = config.STUDIO.get("name", "Luxe Studio")
     lines = [
-        "Hola Angélica ✨ Acabo de agendar una cita en la web:",
+        f"Hola {studio_name} ✨ Acabo de agendar una cita en la web:",
         "",
         f"• Código: {b['code']}",
         f"• Servicio: {b['service_name']}",
@@ -61,8 +62,9 @@ LIMIT_IP_HOUR = (
 
 
 def limit_whatsapp_url(limit_message: str) -> str:
+    studio_name = config.STUDIO.get("name", "Luxe Studio")
     return whatsapp_url(
-        "Hola Angélica ✨\n\n"
+        f"Hola {studio_name} ✨\n\n"
         f"{limit_message}\n\n"
         "Podemos acomodarlo, escríbeme por acá."
     )

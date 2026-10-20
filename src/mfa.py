@@ -17,7 +17,7 @@ def random_secret() -> str:
 
 
 def provisioning_uri(
-    secret: str, account: str = "angie", issuer: str = "AC Luxury Aesthetics",
+    secret: str, account: str = "admin", issuer: str = "Luxe Studio",
 ) -> str:
     label = f"{quote(issuer)}:{quote(account)}"
     return f"otpauth://totp/{label}?secret={secret}&issuer={quote(issuer)}"

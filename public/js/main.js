@@ -1,4 +1,4 @@
-/* AC Luxury Aesthetics — menú, portafolio y servicios. */
+/* Luxe Studio — menú, portafolio y servicios. */
 
 /**
  * Portafolio. Para agregar una foto: guárdala en /img/portafolio/ y pon su ruta

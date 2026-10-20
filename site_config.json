@@ -1,0 +1,34 @@
+{
+  "studio": {
+    "name": "Luxe Studio",
+    "short_name": "Luxe Studio",
+    "tagline": "Uñas · Cejas · Pestañas",
+    "brand_description": "Estudio privado de belleza en El Ingenio, Sur de Cali. Especialistas en uñas semipermanentes, acrílicas, polygel, lifting de pestañas y diseño de cejas con cita previa.",
+    "phone_display": "+57 300 123 4567",
+    "whatsapp": "573001234567",
+    "city": "Cali",
+    "neighborhood": "El Ingenio",
+    "address": "Cra. 123 # 123-123, Barrio El Ingenio",
+    "reference": "Sector El Ingenio (Cra. 123 # 123-123)",
+    "maps_url": "https://maps.google.com/?q=Cra+123+%23+123-123+El+Ingenio+Cali",
+    "waze_url": "https://waze.com/ul?q=El+Ingenio+Cali&navigate=yes",
+    "social": {
+      "instagram_handle": "@luxestudio.demo",
+      "instagram_url": "https://instagram.com/luxestudio.demo",
+      "tiktok_handle": "@luxestudio.demo",
+      "tiktok_url": "https://tiktok.com/@luxestudio.demo"
+    },
+    "specialist": {
+      "name": "Valeria Gómez",
+      "title": "Master Nail Artist & Beauty Specialist",
+      "bio": "Especialista certificada en estética de uñas y mirada con más de 5 años de experiencia, brindando atención personalizada y acabados de salón de alta duración.",
+      "quote": "Cuidado, detalle y arte en cada servicio."
+    },
+    "booking": {
+      "code_prefix": "LX-",
+      "currency": "COP",
+      "admin_mfa_issuer": "Luxe Studio",
+      "admin_mfa_account": "admin"
+    }
+  }
+}
