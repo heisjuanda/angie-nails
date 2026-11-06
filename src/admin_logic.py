@@ -184,20 +184,20 @@ def serialize_booking(row: dict) -> dict:
 
 
 def customer_message(b: dict) -> str:
-    """Mensaje que el estudio envía a la clienta según el estado de la cita."""
+    """Mensaje que Angélica envía a la clienta según el estado de la cita."""
     first = b["customer_name"].split(" ")[0]
     when = f"el {b['date_label']} a las {b['start_label']}"
-    studio_name = config.STUDIO.get("name", "Luxe Studio")
-    ig_handle = config.STUDIO.get("social", {}).get("instagram_handle", "@luxestudio.demo")
+    sender_name = config.STUDIO.get("specialist", {}).get("name", "").split(" ")[0] or "Angélica"
+    ig_handle = config.STUDIO.get("social", {}).get("instagram_handle", "@lashes_nails_a.c")
     if b["status"] == "confirmed":
         return (
             f"Hola {first} ✨ Te confirmo tu cita de {b['service_name']} {when} "
-            f"en el estudio. Código {b['code']}. ¡Nos vemos! — {studio_name}"
+            f"en el estudio. Código {b['code']}. ¡Nos vemos! — {sender_name}"
         )
     if b["status"] == "cancelled":
         return (
             f"Hola {first}, lamentablemente no puedo atender tu cita de {b['service_name']} {when} "
-            f"(código {b['code']}). Escríbeme y buscamos otro horario 💕 — {studio_name}"
+            f"(código {b['code']}). Escríbeme y buscamos otro horario 💕 — {sender_name}"
         )
     if b["status"] == "completed":
         return f"¡Gracias {first}! Fue un gusto atenderte ✨ Si te gustó, cuéntamelo en Instagram {ig_handle} 💅"

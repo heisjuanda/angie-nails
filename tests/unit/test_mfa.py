@@ -54,4 +54,4 @@ def test_provisioning_uri():
     uri = mfa.provisioning_uri(SECRET)
     assert uri.startswith("otpauth://totp/")
     assert "secret=" + SECRET in uri
-    assert "issuer=Luxe%20Studio" in uri
+    assert "issuer=AC%20Luxury%20Aesthetics" in uri

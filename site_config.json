@@ -1,34 +1,36 @@
 {
   "studio": {
-    "name": "Luxe Studio",
-    "short_name": "Luxe Studio",
+    "name": "AC Luxury Aesthetics",
+    "short_name": "Luxury Aesthetics",
+    "manifest_short_name": "Luxury AC",
     "tagline": "Uñas · Cejas · Pestañas",
-    "brand_description": "Estudio privado de belleza en El Ingenio, Sur de Cali. Especialistas en uñas semipermanentes, acrílicas, polygel, lifting de pestañas y diseño de cejas con cita previa.",
-    "phone_display": "+57 300 123 4567",
-    "whatsapp": "573001234567",
+    "brand_description": "Estudio privado de belleza en La Flora, Norte de Cali. Especialistas en uñas semipermanentes, acrílicas, polygel, lifting de pestañas y diseño de cejas con cita previa.",
+    "phone_display": "+57 324 596 7079",
+    "whatsapp": "573245967079",
     "city": "Cali",
-    "neighborhood": "El Ingenio",
-    "address": "Cra. 123 # 123-123, Barrio El Ingenio",
-    "reference": "Sector El Ingenio (Cra. 123 # 123-123)",
-    "maps_url": "https://maps.google.com/?q=Cra+123+%23+123-123+El+Ingenio+Cali",
-    "waze_url": "https://waze.com/ul?q=El+Ingenio+Cali&navigate=yes",
+    "neighborhood": "La Flora",
+    "address": "Av. 3BN # 56-00, Barrio La Flora",
+    "reference": "Al lado de la Parroquia Todos los Santos (Av. 3BN # 56-00)",
+    "maps_url": "https://maps.google.com/?q=Parroquia+Todos+los+Santos+La+Flora+Cali",
+    "waze_url": "https://waze.com/ul?ll=3.4735,-76.5165&navigate=yes",
     "social": {
-      "instagram_handle": "@luxestudio.demo",
-      "instagram_url": "https://instagram.com/luxestudio.demo",
-      "tiktok_handle": "@luxestudio.demo",
-      "tiktok_url": "https://tiktok.com/@luxestudio.demo"
+      "instagram_handle": "@lashes_nails_a.c",
+      "instagram_url": "https://www.instagram.com/lashes_nails_a.c/",
+      "tiktok_handle": "@angelica.castrillon_",
+      "tiktok_url": "https://www.tiktok.com/@angelica.castrillon_"
     },
     "specialist": {
-      "name": "Valeria Gómez",
+      "name": "Angélica Castrillón",
       "title": "Master Nail Artist & Beauty Specialist",
       "bio": "Especialista certificada en estética de uñas y mirada con más de 5 años de experiencia, brindando atención personalizada y acabados de salón de alta duración.",
-      "quote": "Cuidado, detalle y arte en cada servicio."
+      "quote": "Manos y mirada que enamoran."
     },
     "booking": {
-      "code_prefix": "LX-",
+      "code_prefix": "AC-",
       "currency": "COP",
-      "admin_mfa_issuer": "Luxe Studio",
-      "admin_mfa_account": "admin"
+      "admin_mfa_issuer": "AC Luxury Aesthetics",
+      "admin_mfa_account": "angie"
     }
   }
 }
+

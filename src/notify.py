@@ -6,7 +6,7 @@ import messages
 
 CALLMEBOT_URL = "https://api.callmebot.com/whatsapp.php"
 RESEND_URL = "https://api.resend.com/emails"
-DEFAULT_FROM = "Luxe Studio <noreply@resend.dev>"
+DEFAULT_FROM = f"{config.STUDIO.get('name', 'AC Luxury Aesthetics')} <noreply@resend.dev>"
 
 _pending: set = set()
 

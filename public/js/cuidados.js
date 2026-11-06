@@ -1,4 +1,4 @@
-/* Luxe Studio — Selector de pestañas para /cuidados */
+/* AC Luxury Aesthetics — Selector de pestañas para /cuidados */
 import { setupScrollAffordance } from './scroll-affordance.js';
 
 (function () {

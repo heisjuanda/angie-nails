@@ -33,11 +33,36 @@ npm run db:migrate:local
 
 ## Configuración
 
-### Reglas y catálogo del negocio
+### Identidad de marca y estudio (`site_config.json`)
 
-El catálogo de servicios, combos (`BUNDLES`), precios, duraciones y horarios de atención (`BUSINESS_HOURS`) se configuran en `src/config.py`.
+Toda la información del negocio, identidad de marca, especialista, ubicación y canales de contacto está centralizada en `site_config.json`:
 
-El contenido estático del sitio se encuentra en `public/index.html` y las imágenes del portafolio en `public/img/portafolio/`.
+* **Estudio / Negocio:** `name`, `short_name`, `tagline`, `brand_description`.
+* **Contacto y ubicación:** `whatsapp`, `phone_display`, `city`, `neighborhood`, `address`, `reference`, `maps_url`, `waze_url`.
+* **Redes sociales:** `instagram_handle`, `instagram_url`, `tiktok_handle`, `tiktok_url`.
+* **Especialista:** `name`, `title`, `bio`, `quote`.
+* **Reservas y autenticación:** `code_prefix`, `currency`, `admin_mfa_issuer`, `admin_mfa_account`.
+
+#### Sincronización automática (`rebrand`)
+
+Para propagar cualquier cambio de `site_config.json` a todo el proyecto (archivos HTML estáticos, SEO, metadatos OpenGraph, Schema.org JSON-LD, PWA webmanifest y compilación de assets), ejecuta:
+
+```bash
+npm run rebrand
+```
+
+Este comando ejecuta `python3 scripts/sync_branding.py` seguido de `npm run build:assets`:
+1. Actualiza `public/site.webmanifest` (PWA).
+2. Actualiza `<title>`, `<meta description>`, OpenGraph y Schema.org en todas las páginas públicas (`index.html`, `preguntas-frecuentes/index.html`, `cuidados/index.html`, `admin/index.html` y `404.html`).
+3. Actualiza encabezados, textos, menciones a la especialista, enlaces a redes sociales y llamadas a la acción de WhatsApp.
+4. El backend (`src/config.py`, `src/notify.py`, `src/mfa.py`, `src/messages.py`) lee `site_config.json` automáticamente para correos, mensajes de WhatsApp y códigos 2FA.
+5. El frontend (`public/js/main.js` y `public/js/booking.js`) hidrata los elementos dinámicos mediante atributos `data-brand-*` desde `/api/config`.
+
+### Reglas y catálogo del negocio (`src/config.py`)
+
+El catálogo de servicios, combos (`BUNDLES`), precios, duraciones, reglas de topes y horarios de atención (`BUSINESS_HOURS`) se configuran en `src/config.py`.
+
+El contenido estático base se encuentra en `public/index.html` y las imágenes del portafolio en `public/img/portafolio/` (ver `public/img/portafolio/LEEME.md`).
 
 ### Variables de entorno y secretos
 
@@ -77,6 +102,11 @@ EOF
 ## Estructura del proyecto
 
 ```text
+site_config.json   Configuración centralizada de marca, estudio, especialista y contacto
+scripts/
+  sync_branding.py Sincronizador de marca hacia HTMLs, manifest y metadatos SEO
+  probe_notify.py  Prueba de canales de notificación (email / WhatsApp)
+  run_tests.sh     Ejecutor de pruebas
 src/
   entry.py         Router principal del Worker (/api/*)
   public_api.py    Endpoints públicos de configuración, disponibilidad y reservas

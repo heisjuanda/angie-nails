@@ -16,11 +16,24 @@ def random_secret() -> str:
     return "".join(_secrets.choice(_BASE32_ALPHABET) for _ in range(32))
 
 
+def _default_mfa_params() -> tuple[str, str]:
+    try:
+        import config
+        issuer = config.STUDIO.get("booking", {}).get("admin_mfa_issuer") or config.STUDIO.get("name", "AC Luxury Aesthetics")
+        account = config.STUDIO.get("booking", {}).get("admin_mfa_account", "angie")
+        return str(account or "angie"), str(issuer or "AC Luxury Aesthetics")
+    except Exception:
+        return "angie", "AC Luxury Aesthetics"
+
+
 def provisioning_uri(
-    secret: str, account: str = "admin", issuer: str = "Luxe Studio",
+    secret: str, account: str | None = None, issuer: str | None = None,
 ) -> str:
-    label = f"{quote(issuer)}:{quote(account)}"
-    return f"otpauth://totp/{label}?secret={secret}&issuer={quote(issuer)}"
+    def_account, def_issuer = _default_mfa_params()
+    act = account if account is not None else def_account
+    iss = issuer if issuer is not None else def_issuer
+    label = f"{quote(iss)}:{quote(act)}"
+    return f"otpauth://totp/{label}?secret={secret}&issuer={quote(iss)}"
 
 
 def code_at(secret: str, timestamp: int, offset: int = 0) -> str:

@@ -1,4 +1,4 @@
-/* Luxe Studio — menú, portafolio y servicios. */
+/* AC Luxury Aesthetics — menú, portafolio y servicios. */
 
 /**
  * Portafolio. Para agregar una foto: guárdala en /img/portafolio/ y pon su ruta
@@ -126,6 +126,42 @@ async function initServices() {
 
   // WhatsApp del pie de página
   $$("[data-whatsapp-link]").forEach((a) => { a.href = `https://wa.me/${config.whatsapp}`; });
+
+  initBrand(config);
+}
+
+/* ------------------------------------------------------------- marca */
+function initBrand(config) {
+  if (!config || !config.studio) return;
+  const studio = config.studio;
+  const specialist = studio.specialist || {};
+  const firstName = (specialist.name || "").split(" ")[0] || "";
+  const brandName = studio.short_name || studio.name;
+
+  $$("[data-brand-name]").forEach((el) => { el.textContent = brandName; });
+  $$("[data-brand-full-name]").forEach((el) => { el.textContent = studio.name; });
+  $$("[data-brand-tag]").forEach((el) => { el.textContent = studio.tagline; });
+  $$("[data-specialist-name]").forEach((el) => { el.textContent = specialist.name; });
+  $$("[data-specialist-first]").forEach((el) => { el.textContent = firstName; });
+  $$("[data-specialist-bio]").forEach((el) => { el.textContent = specialist.bio; });
+  if (specialist.quote) {
+    $$("[data-specialist-quote]").forEach((el) => { el.textContent = `“${specialist.quote}”`; });
+  }
+  $$("[data-studio-neighborhood]").forEach((el) => { el.textContent = studio.neighborhood; });
+  $$("[data-studio-city]").forEach((el) => { el.textContent = studio.city; });
+  $$("[data-phone-display]").forEach((el) => { el.textContent = studio.phone_display; });
+  if (studio.social?.instagram_url) {
+    $$("[data-social-instagram]").forEach((el) => { el.href = studio.social.instagram_url; });
+  }
+  if (studio.social?.tiktok_url) {
+    $$("[data-social-tiktok]").forEach((el) => { el.href = studio.social.tiktok_url; });
+  }
+  if (studio.maps_url) {
+    $$("[data-maps-link]").forEach((el) => { el.href = studio.maps_url; });
+  }
+  if (studio.waze_url) {
+    $$("[data-waze-link]").forEach((el) => { el.href = studio.waze_url; });
+  }
 }
 
 /*  barra flotante móvil */
