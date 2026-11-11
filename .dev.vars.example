@@ -36,4 +36,5 @@ TOTP_SECRET=
 
 # Dirección exacta del estudio (se muestra sólo tras confirmar una reserva).
 # En producción: npx wrangler secret put ESTUDIO_DIRECCION
-# ESTUDIO_DIRECCION=Av. 3BN # 56-00, La Flora
+# ESTUDIO_DIRECCION="Av 3bn #56-00, Urb. La Flora, Cali, Valle del Cauca"
+# ESTUDIO_MAPS_URL="https://maps.google.com/?q=3.486833,-76.513833"

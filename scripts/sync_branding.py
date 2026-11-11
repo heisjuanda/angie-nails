@@ -133,6 +133,11 @@ def sync_index_html(studio: dict) -> None:
                         item["address"]["streetAddress"] = address
                     if city:
                         item["address"]["addressLocality"] = city
+                if "geo" in item and isinstance(item["geo"], dict) and waze_url:
+                    m_geo = re.search(r'll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)', waze_url)
+                    if m_geo:
+                        item["geo"]["latitude"] = float(m_geo.group(1))
+                        item["geo"]["longitude"] = float(m_geo.group(2))
                 if "areaServed" in item and isinstance(item["areaServed"], list):
                     for area in item["areaServed"]:
                         if area.get("@type") == "City":
@@ -167,7 +172,9 @@ def sync_index_html(studio: dict) -> None:
     # 6. Ubicación y cómo llegar
     html = re.sub(r'<h2 class="h2">Tu cita en <em>[^<]*</em></h2>', f'<h2 class="h2">Tu cita en <em>{neighborhood} · Norte de {city}</em></h2>', html)
     if reference:
-        html = re.sub(r'Punto de referencia: [^<]*?· [^<\n]*', f'Punto de referencia: {reference}', html)
+        html = re.sub(r'(<div class="map-toolbar">[\s\S]*?<span>[\s\S]*?</svg>\s*)([^<\n]+)', rf'\g<1>{reference}', html)
+        html = re.sub(r'(<div class="pin-bubble">\s*<span class="pin-dot"></span>\s*)([^<\n]+)', rf'\g<1>{reference}', html)
+        html = re.sub(r'(<iframe[\s\S]*?title=")[^"]*(")', rf'\g<1>Ubicación: {reference}\g<2>', html)
         html = re.sub(r'<h3 class="detail-title">Punto de Referencia</h3>\s*<p><strong>[^<]*</strong><br>', f'<h3 class="detail-title">Punto de Referencia</h3>\n                  <p><strong>{reference}</strong><br>', html)
     html = re.sub(r'<h3 class="detail-title">Sector y Barrio</h3>\s*<p><strong>Barrio [^<]*</strong>, Norte de [^<.]*\.<br>', f'<h3 class="detail-title">Sector y Barrio</h3>\n                  <p><strong>Barrio {neighborhood}</strong>, Norte de {city}.<br>', html)
 
@@ -175,6 +182,15 @@ def sync_index_html(studio: dict) -> None:
         html = re.sub(r'(href=")[^"]*("\s+target="_blank"\s+rel="noopener"\s+data-maps-link>)', rf'\g<1>{maps_url}\g<2>', html)
     if waze_url:
         html = re.sub(r'(href=")[^"]*("\s+target="_blank"\s+rel="noopener"\s+data-waze-link>)', rf'\g<1>{waze_url}\g<2>', html)
+        m_coords = re.search(r'll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)', waze_url)
+        if m_coords:
+            lat = float(m_coords.group(1))
+            lon = float(m_coords.group(2))
+            osm_href = f"https://www.openstreetmap.org/?mlat={lat:.6f}&amp;mlon={lon:.6f}#map=18/{lat:.6f}/{lon:.6f}"
+            bbox = f"{lon - 0.003:.6f}%2C{lat - 0.002:.6f}%2C{lon + 0.003:.6f}%2C{lat + 0.002:.6f}"
+            osm_src = f"https://www.openstreetmap.org/export/embed.html?bbox={bbox}&amp;layer=mapnik&amp;marker={lat:.6f}%2C{lon:.6f}"
+            html = re.sub(r'href="https://www\.openstreetmap\.org/\?mlat=[^"]*"', f'href="{osm_href}"', html)
+            html = re.sub(r'data-src="https://www\.openstreetmap\.org/export/embed\.html\?[^"]*"', f'data-src="{osm_src}"', html)
 
     # 7. Sobre mí
     html = re.sub(r'<span class="ph-label">\[Retrato de [^\]]* trabajando\]</span>', f'<span class="ph-label">[Retrato de {first_name} trabajando]</span>', html)

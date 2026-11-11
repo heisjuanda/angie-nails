@@ -30,7 +30,14 @@ def _apply_env(env) -> None:
             print(f"BOOKING_WINDOW_DAYS inválido en el entorno: {raw_window!r}")
     raw_address = getattr(env, "ESTUDIO_DIRECCION", None)
     if isinstance(raw_address, str) and raw_address.strip():
-        config.set_studio_address(raw_address)
+        # Normalizar si el entorno tiene el valor legado o truncado
+        cleaned_addr = raw_address.strip()
+        if cleaned_addr in ("Calle 56", "Calle 56 # 3AN-111"):
+            cleaned_addr = config.STUDIO.get("address", "Av 3bn #56-00, Urb. La Flora, Cali, Valle del Cauca")
+        config.set_studio_address(cleaned_addr)
+    raw_maps_url = getattr(env, "ESTUDIO_MAPS_URL", None)
+    if isinstance(raw_maps_url, str) and raw_maps_url.strip():
+        config.ESTUDIO_MAPS_URL = raw_maps_url.strip()
 
 
 async def _drain_body(request) -> None:

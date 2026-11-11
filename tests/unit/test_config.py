@@ -71,7 +71,7 @@ def test_studio_location_config():
     neighborhood = config.STUDIO.get("neighborhood", "La Flora")
     assert neighborhood in config.ESTUDIO_BARRIO
     assert config.ESTUDIO_DIRECCION
-    assert neighborhood in config.ESTUDIO_REFERENCIA or "Todos los Santos" in config.ESTUDIO_REFERENCIA
+    assert neighborhood in config.ESTUDIO_REFERENCIA
     assert config.ESTUDIO_MAPS_URL.startswith("https://maps.google.com")
     assert config.ESTUDIO_WAZE_URL.startswith("https://waze.com")
 

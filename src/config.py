@@ -34,15 +34,20 @@ WHATSAPP = STUDIO.get("whatsapp", "573245967079")
 # Ubicación del estudio (Semi-privado: la dirección exacta se inyecta desde ESTUDIO_DIRECCION
 # en el entorno y se revela sólo tras reservar; por defecto usa la referencia pública del sector).
 ESTUDIO_BARRIO = f"{STUDIO.get('neighborhood', 'La Flora')}, {STUDIO.get('city', 'Cali')}"
-ESTUDIO_REFERENCIA = STUDIO.get("reference", "Al lado de la Parroquia Todos los Santos (Av. 3BN # 56-00)")
-ESTUDIO_DIRECCION = STUDIO.get("address", "Av. 3BN # 56-00, La Flora")
-ESTUDIO_MAPS_URL = STUDIO.get("maps_url", "https://maps.google.com/?q=Parroquia+Todos+los+Santos+La+Flora+Cali")
-ESTUDIO_WAZE_URL = STUDIO.get("waze_url", "https://waze.com/ul?ll=3.4735,-76.5165&navigate=yes")
+ESTUDIO_REFERENCIA = STUDIO.get("reference", "Av 3bn #56-00, Urb. La Flora, Cali, Valle del Cauca")
+ESTUDIO_DIRECCION = STUDIO.get("address", "Av 3bn #56-00, Urb. La Flora, Cali, Valle del Cauca")
+ESTUDIO_MAPS_URL = STUDIO.get("maps_url", "https://maps.google.com/?q=3.486833,-76.513833")
+ESTUDIO_WAZE_URL = STUDIO.get("waze_url", "https://waze.com/ul?ll=3.486833,-76.513833&navigate=yes")
 CODE_PREFIX = STUDIO.get("booking", {}).get("code_prefix", "AC-")
 
 
 def maps_url_for(address: str, neighborhood: str = ESTUDIO_BARRIO) -> str:
-    query = quote_plus(f"{address.strip()} {neighborhood.strip()}".strip())
+    clean = address.strip()
+    if "Av 3bn" in clean or "La Flora" in clean or clean == STUDIO.get("address"):
+        configured_maps = STUDIO.get("maps_url")
+        if configured_maps:
+            return configured_maps
+    query = quote_plus(f"{clean} {neighborhood.strip()}".strip())
     return f"https://maps.google.com/?q={query}"
 
 

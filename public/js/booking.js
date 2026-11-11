@@ -999,7 +999,10 @@
         const pad = (n) => String(n).padStart(2, "0");
         const fmtG = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
         const studioName = state.config?.studio?.name || "AC Luxury Aesthetics";
-        const locStr = data.location ? `${data.location.address}, ${data.location.neighborhood}, Cali` : (state.config?.studio?.neighborhood ? `${state.config.studio.neighborhood}, Cali` : "La Flora, Cali");
+        let locStr = data.location ? data.location.address : (state.config?.studio?.neighborhood ? `${state.config.studio.neighborhood}, Cali` : "La Flora, Cali");
+        if (data.location && !locStr.includes("Cali")) {
+          locStr += `, ${data.location.neighborhood}`;
+        }
         const detailsStr = `Cita confirmada en ${studioName}.\nCódigo: ${data.code}\nServicio: ${sName}\nHorario: ${dText}\nDirección: ${locStr}\n\nGuía de Cuidados: ${window.location.origin}/cuidados/`;
         calBtn.href = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Cita: ${sName} · ${studioName}`)}&dates=${fmtG(start)}/${fmtG(end)}&details=${encodeURIComponent(detailsStr)}&location=${encodeURIComponent(locStr)}`;
         calBtn.hidden = false;
@@ -1016,7 +1019,13 @@
         const mapsLink = form.querySelector("[data-success-maps]");
         const wazeLink = form.querySelector("[data-success-waze]");
         if (addrEl) addrEl.textContent = data.location.address;
-        if (refEl) refEl.textContent = `${data.location.neighborhood} · ${data.location.reference}`;
+        if (refEl) {
+          if (data.location.reference && data.location.reference !== data.location.address) {
+            refEl.textContent = `${data.location.neighborhood} · ${data.location.reference}`;
+          } else {
+            refEl.textContent = `${data.location.neighborhood} · Norte de Cali`;
+          }
+        }
         if (mapsLink && data.location.maps_url) mapsLink.href = data.location.maps_url;
         if (wazeLink && data.location.waze_url) wazeLink.href = data.location.waze_url;
         locBox.hidden = false;
