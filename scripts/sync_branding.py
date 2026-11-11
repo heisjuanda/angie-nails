@@ -232,7 +232,7 @@ def sync_faq_html(studio: dict) -> None:
 
     # 1. <title> y metatags SEO / OpenGraph
     html = replace_tag_content(html, "title", f"Preguntas Frecuentes · {short_name} {city}")
-    meta_desc = f"Respuestas a tus dudas sobre uñas acrílicas, semipermanente, polygel, lifting de pestañas, cejas, políticas de abono y cuidados en {short_name} {city}."
+    meta_desc = f"Respuestas a tus dudas sobre uñas acrílicas, semipermanente, polygel, lifting de pestañas, cejas, políticas de reserva y cuidados en {short_name} {city}."
     html = re.sub(r'<meta name="description"[\s\S]*?>', f'<meta name="description"\n    content="{meta_desc}">', html)
     html = re.sub(r'<meta property="og:title" content="[^"]*">', f'<meta property="og:title" content="Preguntas Frecuentes · {short_name} {city}">', html)
     html = re.sub(r'<meta property="og:description"[\s\S]*?>', f'<meta property="og:description"\n    content="Resuelve tus dudas sobre reservas, técnicas de uñas, lifting de pestañas, cejas y protocolos de atención en nuestro estudio privado en {neighborhood}, {city}.">', html)
